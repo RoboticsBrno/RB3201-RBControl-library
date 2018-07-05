@@ -16,8 +16,8 @@
         {
             "name": "Jaroslav Paral",
             "email": "paral@robotikabrno.cz",
-            "url": "http://www.robotikabrno.cz"
-			"maintainer": true
+            "url": "http://www.robotikabrno.cz",
+		    "maintainer": true
         }
     ],
     "version": "1.0.0",
