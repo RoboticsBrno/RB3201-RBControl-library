@@ -1,4 +1,5 @@
 #pragma once
+#include <sys/time.h>
 #include <vector>
 #include <iostream>
 #include <memory>
@@ -129,7 +130,13 @@ struct DummyClock {
     uint64_t get() { return 0; }
 };
 
+struct ESP32UptimeClock {
+    uint64_t get() { 
+        struct timeval t;
+        gettimeofday(&t, NULL);
+        return t.tv_sec * 1000 + t.tv_usec/1000; }
+};
 
 using LogSink = BaseLogSink< std::string >;
-using Logger = BaseLogger< std::string, std::mutex, DummyClock >;
+using Logger = BaseLogger< std::string, std::mutex, ESP32UptimeClock >;
 using StreamLogSink = BaseStreamLogSink< std::string >;
