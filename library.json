@@ -1,0 +1,26 @@
+{
+    "name": "RB3201-RBControl",
+    "keywords": "ESP32, RBControl, RB3201, Robotarna, RobotikaBrno, RoboticsBrno",
+    "description": "Library for the RB3201-RBControl board with the ESP32 by RoboticsBrno.",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/RoboticsBrno/RB3201-RBControl-library.git"
+    },
+    "authors": [
+        {
+            "name": "Jan Mrázek",
+            "email": "email@honzamrazek.cz",
+            "url": "http://www.robotikabrno.cz"
+        },
+        {
+            "name": "Jaroslav Paral",
+            "email": "paral@robotikabrno.cz",
+            "url": "http://www.robotikabrno.cz"
+			"maintainer": true
+        }
+    ],
+    "version": "1.0.0",
+    "frameworks": "espidf",
+    "platforms": "espressif32"
+}
