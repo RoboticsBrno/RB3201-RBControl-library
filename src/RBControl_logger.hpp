@@ -6,7 +6,7 @@
 #include "logger/format.hpp"
 #include "logger/logging.hpp"  
 
-namespace rb{
+namespace rb {
 extern Logger logger;
 
 template < typename... Args >
