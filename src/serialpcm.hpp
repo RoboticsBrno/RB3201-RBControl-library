@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
-
 #include <i2s_parallel.h>
 #include <driver/i2s.h>
 
