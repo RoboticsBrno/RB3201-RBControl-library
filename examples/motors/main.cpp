@@ -15,11 +15,19 @@ void setup() {
 
     while(true) {
         micros(); // update overflow
-        lmotor.power(80);
-        rmotor.power(100);
+        lmotor.power(20);
+        rmotor.power(20);
         motors.update();
-        rb::log(INFO, "Motors", "Motors power: 50");
-        delay(300);
+        rb::log(INFO, "Motors", "lmotor power: {}  rmotor power: {}",
+                lmotor.power(), rmotor.power());
+        delay(1000);
+
+        lmotor.power(0);
+        rmotor.power(0);
+        motors.update();
+        rb::log(INFO, "Motors", "lmotor power: {}  rmotor power: {}",
+                lmotor.power(), rmotor.power());
+        delay(5000);
     }
 }
 
