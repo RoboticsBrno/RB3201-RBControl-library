@@ -1,5 +1,6 @@
 #pragma once
 
+#include <freertos/FreeRTOS.h>
 #include <vector>
 
 #include "serialpcm.hpp"
@@ -37,6 +38,12 @@ public:
         pwm.update();
     }
 
+    void stop() {
+        for(rb::Motor & motor : motors) {
+            motor.power(0);
+        }
+        update();
+    }
 
 private: 
     SerialPCM pwm {channels, {SERMOT}, RCKMOT, SCKMOT};

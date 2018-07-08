@@ -16,8 +16,12 @@ public:
           pwm_max(255),
           pwm_max_percent(100),
           power_max(100),
+          _invert(1),
           pwm_scale(static_cast<float>(pwm_max) / power_max)
-    {}
+    {
+        _power = 0;
+        power(_power);
+    }
 
     void off(bool brake = true) {
         // TODO: brake
@@ -26,7 +30,8 @@ public:
     }
 
     bool power(int power) {
-        power = power * pwm_scale;
+        _power = power;
+        power = power * pwm_scale * _invert;
         power = clamp(power, -pwm_max, pwm_max, "Motor", 
                       "{}: Clamp the power({} <-> {})", index, -pwm_max, pwm_max);
 
@@ -45,8 +50,11 @@ public:
             pwm0 = -power;
             pwm1 = 0;
         }
-        rb::log(INFO, "Motor", "{}: pwm0: {}   pwm1: {}", index, pwm0, pwm1);
         return true;
+    }
+ 
+    int power() {
+        return _power;
     }
 
     bool pwmMaxPercent(int percent) {
@@ -61,13 +69,23 @@ public:
         return true;
     }
 
+    void invert(bool invert = true) {
+        if(invert) {
+            _invert = -1;
+        } else {
+            _invert = 1;
+        }
+    }
+
 private:
     SerialPCM::value_type & pwm0; 
     SerialPCM::value_type & pwm1;
     int index;
     int pwm_max;
     int pwm_max_percent;
+    int _power;
     int power_max;
+    bool _invert;
     float pwm_scale;
 };
 
