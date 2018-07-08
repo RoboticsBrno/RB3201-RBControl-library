@@ -4,7 +4,7 @@
 
 #include "serialpcm.hpp"
 #include "RBControl_pinout.hpp"
-#include "RBControl_motor.hpp"
+#include "_RBControl_motor.hpp"
 
 namespace rb {
 
@@ -30,6 +30,8 @@ public:
             return motors[0];
         }
     }
+
+    int motorCount() { return motors.size(); }
     
     void update() {
         pwm.update();

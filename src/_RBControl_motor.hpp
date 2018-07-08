@@ -25,27 +25,40 @@ public:
         pwm1 = 0;
     }
 
-    void power(int power) {
+    bool power(int power) {
         power = power * pwm_scale;
         power = clamp(power, -pwm_max, pwm_max, "Motor", 
                       "{}: Clamp the power({} <-> {})", index, -pwm_max, pwm_max);
-        
-        if(power > 0) {
+
+        if(power == 0) {
+            if(pwm0 == 0 && pwm1 == 0)
+                return false;
+            pwm0 = pwm1 = 0;
+        } else if(power > 0) {
+            if(pwm1 == power)
+                return false;
             pwm0 = 0;
             pwm1 = power;
         } else {
+            if(pwm0 == -power)
+                return false;
             pwm0 = -power;
             pwm1 = 0;
         }
         rb::log(INFO, "Motor", "{}: pwm0: {}   pwm1: {}", index, pwm0, pwm1);
+        return true;
     }
 
-    void pwmMaxPercent(int percent) {
-        pwm_max_percent = clamp(percent, 0, 100, "Motor", 
+    bool pwmMaxPercent(int percent) {
+        const int new_max_percent = clamp(percent, 0, 100, "Motor", 
                                 "{}: Clamp the pwmMaxPercent(0 - 100)",
                                 index);
+        if(new_max_percent == pwm_max_percent)
+            return false;
+        pwm_max_percent = new_max_percent;
         pwm_scale = (static_cast<float>(pwm_max * pwm_max_percent) / 100) 
                     / power_max;
+        return true;
     }
 
 private:

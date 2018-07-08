@@ -1,5 +1,5 @@
 #include <iostream>
-#include "RBControl_motors.hpp"
+#include "RBControl_manager.hpp"
 
 #include <Arduino.h>
 
@@ -8,15 +8,11 @@ void setup() {
     delay(500);
 
     rb::log(INFO, "Motors", "Init clas Motors");
-    rb::Motors motors;
-
-    rb::Motor& lmotor = motors.motor(0);
-    rb::Motor& rmotor = motors.motor(1);
+    rb::Manager man;
 
     while(true) {
         micros(); // update overflow
-        lmotor.power(80);
-        rmotor.power(100);
+        man.setMotors().power(0, 50).power(1, 50).set();
         motors.update();
         rb::log(INFO, "Motors", "Motors power: 50");
         delay(300);
