@@ -1,6 +1,7 @@
 #pragma once
 
-#include "freertos/queue.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <vector>
 #include <memory>
 #include <mutex>
