@@ -1,9 +1,11 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <driver/i2c.h>
 
 #include <esp_log.h>
 
 #include "RBControl_manager.hpp"
+#include "RBControl_battery.hpp"
 
 #define TAG "RBControlManager"
 
@@ -17,17 +19,41 @@ static int diff_ms(timeval& t1, timeval& t2) {
 
 namespace rb {
 
-Manager::Manager() {
+Manager::Manager() :
+    m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
+    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds) {
     m_queue = xQueueCreate(32, sizeof(struct Event));
 
     m_motors_last_set.tv_sec = 0;
     schedule(MOTORS_FAILSAFE_PERIOD, &Manager::motorsFailSafe, this);
+
+    m_battery.scheduleVoltageUpdating(*this);
+
+    setupExpander();
 
     xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 1, NULL);
 }
 
 Manager::~Manager() {
     vQueueDelete(m_queue);
+}
+
+void Manager::setupExpander() {
+    m_expander.pinMode(EA0, GPIO_MODE_OUTPUT);
+    m_expander.pinMode(EA1, GPIO_MODE_OUTPUT);
+    m_expander.pinMode(EA2, GPIO_MODE_OUTPUT);
+    m_expander.pinMode(EA3, GPIO_MODE_OUTPUT);
+    m_expander.pinMode(EA4, GPIO_MODE_OUTPUT);
+    m_expander.pinMode(EA5, GPIO_MODE_OUTPUT);
+    m_expander.pinMode(EA6, GPIO_MODE_OUTPUT);
+    m_expander.pinMode(EA7, GPIO_MODE_OUTPUT);
+
+    m_expander.pinMode(SW1, GPIO_MODE_INPUT);
+    m_expander.pullUp(SW1, 1);
+    m_expander.pinMode(SW2, GPIO_MODE_INPUT);
+    m_expander.pullUp(SW2, 1);
+    m_expander.pinMode(SW3, GPIO_MODE_INPUT);
+    m_expander.pullUp(SW3, 1);
 }
 
 void Manager::queue(EventType type, void *cookie) {

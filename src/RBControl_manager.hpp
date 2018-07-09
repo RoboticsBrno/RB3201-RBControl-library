@@ -8,6 +8,10 @@
 #include <list>
 
 #include "_RBControl_motors.hpp"
+#include "RBControl_battery.hpp"
+#include "RBControl_piezo.hpp"
+#include "Adafruit_MCP23017.h"
+#include "RBControl_leds.hpp"
 
 namespace rb {
 
@@ -20,6 +24,11 @@ class Manager {
 public:
     Manager();
     ~Manager();
+
+    Adafruit_MCP23017& expander() { return m_expander; }
+    Piezo& piezo() { return m_piezo; }
+    Battery& battery() { return m_battery; }
+    Leds& leds() { return m_leds; }
 
     MotorChangeBuilder setMotors();
     void schedule(uint32_t period, ManagerTimerCallback callback, void *cookie);
@@ -54,6 +63,8 @@ private:
     void processEvent(struct Event *ev);
 
     static bool motorsFailSafe(void *cookie);
+
+    void setupExpander();
     
     QueueHandle_t m_queue;
 
@@ -62,6 +73,11 @@ private:
     
     struct timeval m_motors_last_set;
     rb::Motors m_motors;
+
+    Adafruit_MCP23017 m_expander;
+    rb::Piezo m_piezo;
+    rb::Leds m_leds;
+    rb::Battery m_battery;
 };
 
 class MotorChangeBuilder {
