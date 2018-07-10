@@ -9,7 +9,7 @@ class Piezo {
     friend class Manager;
 public:
 
-    void setTone(uint32_t freq);
+    void setTone(uint32_t freq); //!< Set piezo to freq. Use 0 to turn off.
 
 private:
     Piezo();

@@ -17,10 +17,13 @@ namespace rb {
 
 class MotorChangeBuilder;
 
+/**
+ * \brief The callback type for schedule method. Return true to schedule again.
+ */
 typedef bool (*ManagerTimerCallback)(void *cookie);
 
 /**
- * \brief The main library class.
+ * \brief The main library class. Keep an instance of it through the whole program.
  */
 class Manager {
     friend class MotorChangeBuilder;
@@ -28,12 +31,17 @@ public:
     Manager();
     ~Manager();
 
-    Adafruit_MCP23017& expander() { return m_expander; }
-    Piezo& piezo() { return m_piezo; }
-    Battery& battery() { return m_battery; }
-    Leds& leds() { return m_leds; }
+    Adafruit_MCP23017& expander() { return m_expander; } //!< Get the expander. LEDs and buttons are connected to it.
+    Piezo& piezo() { return m_piezo; } //!< Get the piezo controller
+    Battery& battery() { return m_battery; } //!< Get the battery interface
+    Leds& leds() { return m_leds; } //!< Get the LEDs helper
 
-    MotorChangeBuilder setMotors();
+    MotorChangeBuilder setMotors(); //!< Create motor power change builder. 
+
+    /**
+     * Schedule callback to fire after period ms. Return true from the callback
+     * to schedule periodically, false to not (singleshot timer).
+     */
     void schedule(uint32_t period, ManagerTimerCallback callback, void *cookie);
 
 private:
@@ -94,9 +102,9 @@ public:
     ~MotorChangeBuilder();
     
 
-    MotorChangeBuilder& power(uint8_t id, int8_t value);
-    MotorChangeBuilder& pwmMaxPercent(uint8_t id, uint8_t pct);
-    void set();
+    MotorChangeBuilder& power(uint8_t id, int8_t value); //!< Set current motor power to value for motor id
+    MotorChangeBuilder& pwmMaxPercent(uint8_t id, uint8_t pct); //!< Limit motor id's power to pct
+    void set(); //!< Finish the changes and submit them
 
 private:
     Manager& m_manager;
