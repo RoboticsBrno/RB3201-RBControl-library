@@ -10,11 +10,13 @@ typedef enum {
     I2S_PARALLEL_BITS_32=32,
 } i2s_parallel_cfg_bits_t;
 
+/// @private
 typedef struct {
     void *memory;
     size_t size;
 } i2s_parallel_buffer_desc_t;
 
+/// @private
 typedef struct {
     int gpio_bus[24];
     int gpio_wclk;

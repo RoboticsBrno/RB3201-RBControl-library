@@ -6,6 +6,7 @@
 #include <mutex>
 #include "format.hpp"
 
+/// @privatesection
 enum Verbosity {
     NOTHING = -100,
 

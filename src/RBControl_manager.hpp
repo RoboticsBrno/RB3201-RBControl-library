@@ -19,6 +19,9 @@ class MotorChangeBuilder;
 
 typedef bool (*ManagerTimerCallback)(void *cookie);
 
+/**
+ * \brief The main library class.
+ */
 class Manager {
     friend class MotorChangeBuilder;
 public:
@@ -80,6 +83,9 @@ private:
     rb::Battery m_battery;
 };
 
+/**
+ * \brief Helper class for building the motor change event
+ */
 class MotorChangeBuilder {
 public:
     MotorChangeBuilder(Manager& manager);

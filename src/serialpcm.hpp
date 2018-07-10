@@ -11,6 +11,7 @@
 // This file is part of RB3201-RBControl-library - https://github.com/RoboticsBrno/RB3201-RBControl-library
 // Author: Jakub Streit
 
+/// @private
 class SerialPCM {
 public:
     typedef int value_type;

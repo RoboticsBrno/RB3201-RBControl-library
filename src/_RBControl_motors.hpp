@@ -11,6 +11,7 @@ namespace rb {
 
 static const int channels = 16;
 
+/// @private
 class Motors {
 public: 
     Motors()

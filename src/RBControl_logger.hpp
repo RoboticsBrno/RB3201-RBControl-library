@@ -6,6 +6,10 @@
 #include "logger/format.hpp"
 #include "logger/logging.hpp"  
 
+
+/**
+ * \brief The base namespace. Contains some logging functions, too.
+ */
 namespace rb {
 extern Logger logger;
 

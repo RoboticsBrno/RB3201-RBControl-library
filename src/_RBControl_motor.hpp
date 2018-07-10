@@ -5,6 +5,7 @@
 
 namespace rb {
 
+/// @private
 class Motor{
 public: 
     Motor(SerialPCM::value_type & pwm0, 

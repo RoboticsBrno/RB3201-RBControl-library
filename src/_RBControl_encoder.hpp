@@ -4,6 +4,7 @@
 
 namespace rb {
 
+/// @private
 class Encoder{
 public: 
     Encoder(int pin0, int pin1)

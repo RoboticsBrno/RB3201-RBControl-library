@@ -9,18 +9,21 @@ namespace rb {
 
 class Manager;
 
+/**
+ * \brief Contains the battery state and can control the robot's power.
+ */
 class Battery {
     friend class Manager;
 
-public:
-    static const uint32_t VOLTAGE_MIN = 3300*2;
-    static const uint32_t VOLTAGE_WARNING = 3500*2;
-    static const uint32_t VOLTAGE_MAX = 4200*2;
+public: 
+    static const uint32_t VOLTAGE_MIN = 3300*2; //!< Minimal battery voltage, in mV, at which the robot shuts down
+    static const uint32_t VOLTAGE_MAX = 4200*2; //!< Maximal battery voltage, in mV
+    static const uint32_t VOLTAGE_WARNING = 3500*2; //!< The voltage at which alert triggers
 
-    uint32_t pct() const;
-    uint32_t voltageMv() const;
+    uint32_t pct() const; //!< returns current battery percentage
+    uint32_t voltageMv() const; //!< returns current battery voltage
 
-    void shutdown();
+    void shutdown(); //!< shuts the robot down
 
 private:
     Battery(Piezo& piezo, Leds& leds);

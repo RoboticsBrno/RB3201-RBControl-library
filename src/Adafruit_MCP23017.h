@@ -17,6 +17,9 @@
 #include <stdint.h>
 #include <driver/i2c.h>
 
+/**
+ * \brief Controls the expander pins
+ */
 class Adafruit_MCP23017 {
 public:
   Adafruit_MCP23017(uint8_t addr, i2c_port_t port, gpio_num_t sda, gpio_num_t scl);

@@ -4,6 +4,7 @@
 #include <functional>
 #include "formatters.hpp"
 
+/// @privatesection
 template <
     typename String,
     typename SizeType,

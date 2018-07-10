@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cstring>
 
+/// @privatesection
 struct Formatable { };
 
 #define FMT_CONST( FMT ) \
