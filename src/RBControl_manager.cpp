@@ -63,7 +63,7 @@ void Manager::queue(EventType type, void *cookie) {
     };
 
     while(xQueueSendToBack(m_queue, &ev, 0) != pdTRUE) {
-        vTaskDelay(EVENT_LOOP_PERIOD);
+        taskYIELD();
     }
 }
 
