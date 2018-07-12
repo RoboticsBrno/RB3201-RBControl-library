@@ -13,7 +13,7 @@
 #define MOTORS_FAILSAFE_PERIOD 300
 
 static int diff_ms(timeval& t1, timeval& t2) {
-    return (((t1.tv_sec - t2.tv_sec) * 1000000) + 
+    return (((t1.tv_sec - t2.tv_sec) * 1000000) +
             (t1.tv_usec - t2.tv_usec))/1000;
 }
 
@@ -30,6 +30,10 @@ Manager::Manager() :
     m_battery.scheduleVoltageUpdating(*this);
 
     setupExpander();
+
+    for(int i = 0; i < Encoder::COUNT; ++i) {
+        m_encoders[i] = NULL;
+    }
 
     xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 1, NULL);
 }
@@ -56,15 +60,24 @@ void Manager::setupExpander() {
     m_expander.pullUp(SW3, 1);
 }
 
-void Manager::queue(EventType type, void *cookie) {
-    struct Event ev = {
-        .type = type,
-        cookie = cookie,
-    };
-
-    while(xQueueSendToBack(m_queue, &ev, 0) != pdTRUE) {
-        taskYIELD();
+void Manager::queue(const Event *ev, bool toFront) {
+    if(!toFront) {
+        while(xQueueSendToBack(m_queue, ev, 0) != pdTRUE)
+            vTaskDelay(1);
+    } else {
+        while(xQueueSendToFront(m_queue, ev, 0) != pdTRUE)
+            vTaskDelay(1);
     }
+
+}
+
+bool Manager::queueFromIsr(const Event *ev, bool toFront) {
+    BaseType_t woken = pdFALSE;
+    if(!toFront)
+        xQueueSendToBackFromISR(m_queue, ev, &woken);
+    else
+        xQueueSendToFrontFromISR(m_queue, ev, &woken);
+    return woken == pdTRUE;
 }
 
 void Manager::consumerRoutineTrampoline(void *cookie) {
@@ -78,7 +91,7 @@ void Manager::consumerRoutine() {
     gettimeofday(&tv_last, NULL);
 
     while(true) {
-        while(xQueueReceive(m_queue, &ev, 0) == pdTRUE) {
+        while(xQueueReceive(m_queue, &ev, EVENT_LOOP_PERIOD) == pdTRUE) {
             processEvent(&ev);
         }
 
@@ -102,28 +115,28 @@ void Manager::consumerRoutine() {
             ++itr;
         }
         m_timers_mutex.unlock();
-
-        vTaskDelay(EVENT_LOOP_PERIOD);
     }
 }
 
 void Manager::processEvent(struct Manager::Event *ev) {
     switch(ev->type) {
     case EVENT_MOTORS: {
-        auto data = (std::vector<EventMotorsData>*)ev->cookie;
+        auto data = (std::vector<EventMotorsData>*)ev->data.motors;
         bool changed = false;
         for(const auto& m : *data) {
-            if((m_motors.motor(m.id).*m.setter_func)(m.value))
+            if((m_motors.motor(m.id).*m.setter_func)(m.value)) {
                 changed = true;
+            }
         }
-        if(changed)
+        if(changed) {
             m_motors.update();
+        }
         delete data;
 
         gettimeofday(&m_motors_last_set, NULL);
         break;
     }
-    case EVENT_MOTORS_STOP_ALL:
+    case EVENT_MOTORS_STOP_ALL: {
         const int count = m_motors.motorCount();
         bool changed = false;
         for(int i = 0; i < count; ++i) {
@@ -133,6 +146,17 @@ void Manager::processEvent(struct Manager::Event *ev) {
         if(changed)
             m_motors.update();
         break;
+    }
+    case EVENT_ENCODER_EDGE: {
+        const auto& e = ev->data.encoderEdge;
+        m_encoders[e.index]->onEdgeIsr(e.timestamp, e.pinLevel);
+        break;
+    }
+    case EVENT_ENCODER_PCNT: {
+        const auto& e = ev->data.encoderPcnt;
+        m_encoders[e.index]->onPcntIsr(e.status);
+        break;
+    }
     }
 }
 
@@ -154,15 +178,33 @@ bool Manager::motorsFailSafe(void *cookie) {
         gettimeofday(&now, NULL);
         if(diff_ms(now, man->m_motors_last_set) >= MOTORS_FAILSAFE_PERIOD) {
             ESP_LOGE(TAG, "Motor failsafe triggered, stopping all motors!");
-            man->queue(EVENT_MOTORS_STOP_ALL, NULL);
+            const Event ev = { .type = EVENT_MOTORS_STOP_ALL, .data = {} };
+            man->queue(&ev);
             man->m_motors_last_set.tv_sec = 0;
         }
     }
     return true;
 }
 
+void Manager::initEncoder(uint8_t index) {
+    if(index >= Encoder::COUNT) {
+        ESP_LOGE(TAG, "Invalid encoder index %d in initEncoder, ignoring.", (int)index);
+        return;
+    }
+
+    if(m_encoders[index] == NULL) {
+        m_encoders[index] = new Encoder(*this, index);
+        m_encoders[index]->install();
+    }
+}
+
 MotorChangeBuilder Manager::setMotors() {
     return MotorChangeBuilder(*this);
+}
+
+void Manager::setMotorPower(uint8_t id, int8_t speed) {
+    MotorChangeBuilder b(*this);
+    b.power(id, speed).set();
 }
 
 MotorChangeBuilder::MotorChangeBuilder(Manager &manager) : m_manager(manager) {
@@ -194,8 +236,14 @@ MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(uint8_t id, uint8_t pct) {
     return *this;
 }
 
-void MotorChangeBuilder::set() {
-    m_manager.queue(Manager::EVENT_MOTORS, m_values.release());
+void MotorChangeBuilder::set(bool toFront) {
+    const Manager::Event ev = {
+        .type = Manager::EVENT_MOTORS,
+        .data = {
+            .motors = m_values.release(),
+        },
+    };
+    m_manager.queue(&ev, toFront);
 }
 
 };

@@ -1,23 +1,47 @@
 #pragma once
 
 #include <driver/adc.h>
+#include <driver/gpio.h>
 
 namespace rb {
 
 static const gpio_num_t IO0 = GPIO_NUM_0;
 static const gpio_num_t IO2 = GPIO_NUM_2;
 static const gpio_num_t IO12 = GPIO_NUM_12;
-
-static const gpio_num_t RCKMOT = IO0;
-static const gpio_num_t SERMOT = IO2;
-static const gpio_num_t SCKMOT = IO12;
-
+static const gpio_num_t IO4 = GPIO_NUM_4;
+static const gpio_num_t IO5 = GPIO_NUM_5;
+static const gpio_num_t IO13 = GPIO_NUM_13;
+static const gpio_num_t IO14 = GPIO_NUM_14;
+static const gpio_num_t IO15 = GPIO_NUM_15;
+static const gpio_num_t IO16 = GPIO_NUM_16;
+static const gpio_num_t IO17 = GPIO_NUM_17;
+static const gpio_num_t IO18 = GPIO_NUM_18;
+static const gpio_num_t IO19 = GPIO_NUM_19;
+static const gpio_num_t IO21 = GPIO_NUM_21;
 static const gpio_num_t IO25 = GPIO_NUM_25;
+static const gpio_num_t IO26 = GPIO_NUM_26;
+static const gpio_num_t IO27 = GPIO_NUM_27;
 static const gpio_num_t IO32 = GPIO_NUM_32;
 static const gpio_num_t IO33 = GPIO_NUM_33;
 static const gpio_num_t IO34 = GPIO_NUM_34;
 static const gpio_num_t IO35 = GPIO_NUM_35;
 
+static const gpio_num_t RCKMOT = IO0;
+static const gpio_num_t SERMOT = IO2;
+static const gpio_num_t SCKMOT = IO12;
+
+static const gpio_num_t ENC1A = IO21;
+static const gpio_num_t ENC1B = IO19;
+static const gpio_num_t ENC2A = IO18;
+static const gpio_num_t ENC2B = IO5;
+static const gpio_num_t ENC3A = IO17;
+static const gpio_num_t ENC3B = IO16;
+static const gpio_num_t ENC4A = IO15;
+static const gpio_num_t ENC4B = IO13;
+static const gpio_num_t ENC5A = IO4;
+static const gpio_num_t ENC5B = IO15;
+static const gpio_num_t ENC6A = IO27;
+static const gpio_num_t ENC6B = IO26;
 static const gpio_num_t ENC7A = IO25;
 static const gpio_num_t ENC7B = IO33;
 static const gpio_num_t ENC8A = IO32;
