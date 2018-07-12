@@ -24,6 +24,8 @@ Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander) 
 
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_11);
+
+    updateVoltage();
 }
 
 Battery::~Battery() {
