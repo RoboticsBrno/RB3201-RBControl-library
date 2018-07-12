@@ -20,7 +20,7 @@
 		    "maintainer": true
         }
     ],
-    "version": "1.4.0",
+    "version": "1.5.0",
     "frameworks": [ "espidf", "arduino" ],
     "platforms": "espressif32"
 }

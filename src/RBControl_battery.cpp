@@ -8,26 +8,19 @@
 #include "RBControl_piezo.hpp"
 
 #define BATTERY_ADC_SAMPLES 32
-// first measure 8.580401194725383
-#define BATTERY_COEF 8.3f
+#define BATTERY_DEFAULT_COEF 9.f
 
 #define TAG "RBControlBattery"
 
 namespace rb {
 
-Battery::Battery(rb::Piezo& piezo, rb::Leds& leds) : m_piezo(piezo), m_leds(leds) {
+Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander) : m_piezo(piezo), m_leds(leds), m_expander(expander) {
     m_warningOn = false;
     m_undervoltedCounter = 0;
+    m_coef = BATTERY_DEFAULT_COEF;
 
-    gpio_set_level(POWER_OFF, 1);
-
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL << POWER_OFF);
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
+    m_expander.digitalWrite(POWER_OFF_EXPANDER, 1);
+    m_expander.pinMode(POWER_OFF_EXPANDER, GPIO_MODE_OUTPUT);
 
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_11);
@@ -37,11 +30,23 @@ Battery::~Battery() {
 
 }
 
+void Battery::setCoef(float coef) {
+    m_coef.store(coef);
+}
+
+float Battery::coef() const {
+    return m_coef.load();
+}
+
 void Battery::shutdown() {
     ESP_LOGW(TAG, "Shutting down.");
 
-    gpio_set_level(POWER_OFF, 0);
+    m_expander.digitalWrite(POWER_OFF_EXPANDER, 0);
     while(true) { } // wait for poweroff
+}
+
+uint32_t Battery::raw() const {
+    return m_raw.load();
 }
 
 uint32_t Battery::voltageMv() const {
@@ -81,10 +86,16 @@ void Battery::updateVoltage() {
     }
     adc_reading /= BATTERY_ADC_SAMPLES;
 
-    const uint32_t voltage = adc_reading*BATTERY_COEF;
+    const uint32_t voltage = adc_reading * m_coef.load();
+    m_raw.store(adc_reading);
     m_voltageMv.store(voltage);
 
     ESP_LOGD(TAG, "Battery is at %u %u", adc_reading, voltage);
+
+    // Not connected to the battery
+    if(voltage < 1000) {
+        return;
+    }
 
     if(voltage <= VOLTAGE_WARNING) {
         setWarning(!m_warningOn);
@@ -92,7 +103,7 @@ void Battery::updateVoltage() {
         setWarning(false);
     }
 
-    if(voltage != 0 && voltage <= VOLTAGE_MIN) {
+    if(voltage <= VOLTAGE_MIN) {
         ESP_LOGE(TAG, "Battery is at %u/%umv", adc_reading, voltage);
         if(++m_undervoltedCounter >= 10) {
             shutdown();

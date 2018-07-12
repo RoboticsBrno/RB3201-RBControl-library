@@ -59,6 +59,7 @@ static const int LED_RED = EB3;
 static const int LED_YELLOW = EB4;
 static const int LED_GREEN = EB5;
 static const int LED_BLUE = EB6;
+static const int POWER_OFF_EXPANDER = EB7;
 
 
 
