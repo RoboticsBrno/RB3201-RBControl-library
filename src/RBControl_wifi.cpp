@@ -38,7 +38,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
             IP4_ADDR(&info.netmask, 255, 255, 255, 0);
             tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP);
             ESP_ERROR_CHECK(tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &info));
-       
+
             dhcps_lease_t lease;
             lease.enable = true;
             IP4_ADDR(&lease.start_ip, 192, 168, 0, 10);
@@ -120,11 +120,13 @@ void WiFi::startAp(const char *ssid, const char *pass, uint8_t channel) {
     snprintf((char*)cfg.ap.password, 64, "%s", pass);
     cfg.ap.channel = channel;
     cfg.ap.authmode = WIFI_AUTH_WPA2_PSK;
-    cfg.ap.beacon_interval = 500;
+    cfg.ap.beacon_interval = 400;
     cfg.ap.max_connection = 4;
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &cfg));
 
     ESP_ERROR_CHECK(esp_wifi_start());
+
+    esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
 }
 
 void WiFi::init() {
