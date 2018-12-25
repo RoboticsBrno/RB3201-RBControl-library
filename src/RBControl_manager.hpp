@@ -13,6 +13,7 @@
 #include "Adafruit_MCP23017.h"
 #include "RBControl_leds.hpp"
 #include "RBControl_encoder.hpp"
+#include "RBControl_servo.hpp"
 
 namespace rb {
 
@@ -37,12 +38,15 @@ public:
     void initEncoder(uint8_t index);
     Encoder *encoder(uint8_t index) const { return m_encoders[index]; }
 
+    ServoBus& initServoBus(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_num_t pin = GPIO_NUM_32);
+    ServoBus& servoBus() { return m_servos; };
+
     Adafruit_MCP23017& expander() { return m_expander; } //!< Get the expander. LEDs and buttons are connected to it.
     Piezo& piezo() { return m_piezo; } //!< Get the piezo controller
     Battery& battery() { return m_battery; } //!< Get the battery interface
     Leds& leds() { return m_leds; } //!< Get the LEDs helper
 
-    MotorChangeBuilder setMotors(); //!< Create motor power change builder. 
+    MotorChangeBuilder setMotors(); //!< Create motor power change builder.
     void setMotorPower(uint8_t id, int8_t speed); //!< Set single motor power.
 
     /**
@@ -100,12 +104,12 @@ private:
     static bool motorsFailSafe(void *cookie);
 
     void setupExpander();
-    
+
     QueueHandle_t m_queue;
 
     std::list<Timer> m_timers;
     std::recursive_mutex m_timers_mutex;
-    
+
     struct timeval m_motors_last_set;
     rb::Motors m_motors;
 
@@ -113,8 +117,10 @@ private:
     rb::Piezo m_piezo;
     rb::Leds m_leds;
     rb::Battery m_battery;
+    rb::ServoBus m_servos;
 
     rb::Encoder *m_encoders[Encoder::COUNT];
+
 };
 
 /**

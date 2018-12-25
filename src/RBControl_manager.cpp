@@ -21,7 +21,7 @@ namespace rb {
 
 Manager::Manager() :
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
-    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander) {
+    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos() {
     m_queue = xQueueCreate(32, sizeof(struct Event));
 
     m_motors_last_set.tv_sec = 0;
@@ -98,6 +98,8 @@ void Manager::consumerRoutine() {
         gettimeofday(&tv_now, NULL);
         const uint32_t diff = diff_ms(tv_now, tv_last);
         tv_last = tv_now;
+
+        m_servos.update(diff);
 
         m_timers_mutex.lock();
         for(auto itr = m_timers.begin(); itr != m_timers.end(); ) {
@@ -196,6 +198,11 @@ void Manager::initEncoder(uint8_t index) {
         m_encoders[index] = new Encoder(*this, index);
         m_encoders[index]->install();
     }
+}
+
+rb::ServoBus& Manager::initServoBus(uint8_t servo_count, uart_port_t uart, gpio_num_t pin) {
+    m_servos.install(servo_count, uart, pin);
+    return m_servos;
 }
 
 MotorChangeBuilder Manager::setMotors() {
