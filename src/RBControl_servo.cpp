@@ -56,6 +56,7 @@ void ServoBus::update(uint32_t diff_ms) {
             s.current += dist;
         }
         s.servo.move(Angle::deg(float(s.current)/100.f), std::chrono::milliseconds(diff_ms));
+        //printf("%d %u\n", s.current, diff_ms);
     }
     m_mutex.unlock();
 }
