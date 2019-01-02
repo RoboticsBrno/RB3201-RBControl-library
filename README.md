@@ -1,8 +1,9 @@
 # RB3201-RBControl-library
-Library for board RB3201-RBControl based on ESP32.
 
+Library for board [RB3201-RBControl](https://github.com/RoboticsBrno/RB3201-RBControl) based on ESP32.
 
 ## Example
+
 ```cpp
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
