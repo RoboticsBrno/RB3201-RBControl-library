@@ -21,7 +21,7 @@ public:
     ServoBus();
     ~ServoBus() {}
 
-    void set(uint8_t id, float angle, float speed = 180.f);
+    void set(uint8_t id, float angle, float speed = 180.f, float speed_raise = 0.07f);
     void limit(uint8_t id,  Angle b, Angle t);
 
 private:
@@ -32,12 +32,16 @@ private:
         servo_info(const lw::Bus::Servo& s) : servo(s) {
             current = 0xFFFF;
             target = 0xFFFF;
-            speed = 0.f;
+            speed_coef = 0.f;
+            speed_target = 0.f;
+            speed_raise = 0.f;
         }
 
         uint16_t current;
         uint16_t target;
-        float speed;
+        float speed_coef;
+        float speed_target;
+        float speed_raise;
         lw::Bus::Servo servo;
     };
 

@@ -19,16 +19,22 @@ void ServoBus::install(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_
     m_mutex.unlock();
 }
 
-void ServoBus::set(uint8_t id, float angle, float speed) {
+void ServoBus::set(uint8_t id, float angle, float speed, float speed_raise) {
     speed = std::max(1.f, std::min(240.f, speed)) / 10.f;
     angle = std::max(0.f, std::min(360.f, angle)) * 100;
 
     m_mutex.lock();
-    if(m_servos[id].target == 0xFFFF) {
-        m_servos[id].current = angle + 1;
+    auto& si = m_servos[id];
+    if(si.current != angle) {
+        if(si.target == 0xFFFF) {
+            si.current = angle + 1;
+        } else if((si.current > si.target) != (si.current > angle)) {
+            si.speed_coef = 0.f;
+        }
+        si.target = angle;
+        si.speed_target = speed;
+        si.speed_raise = speed_raise;
     }
-    m_servos[id].target = angle;
-    m_servos[id].speed = speed;
     m_mutex.unlock();
 }
 
@@ -46,17 +52,29 @@ void ServoBus::update(uint32_t diff_ms) {
         if(s.current == s.target)
             continue;
 
-        int32_t dist = abs(int32_t(s.target) - int32_t(s.current));
-        dist = std::min(dist, int32_t(s.speed * diff_ms));
-        if(dist <= 0) {
-            s.current = s.target;
-        } else if (s.target < s.current) {
-            s.current -= dist;
-        } else {
-            s.current += dist;
+        float speed = s.speed_target;
+        if(s.speed_coef < 1.f) {
+            s.speed_coef = std::min(1.f, s.speed_coef + s.speed_raise);
+            speed *= (s.speed_coef * s.speed_coef);
         }
+
+        int32_t dist = abs(int32_t(s.target) - int32_t(s.current));
+        dist = std::max(1, std::min(dist, int32_t(speed * diff_ms)));
+        if(dist > 0) {
+            if (s.target < s.current) {
+                s.current -= dist;
+            } else {
+                s.current += dist;
+            }
+        }
+
+        if(dist <= 0 || s.current == s.target) {
+            s.current = s.target;
+            s.speed_coef = 0.f;
+        }
+
+        //printf("%d %d %f %f %f %u\n", dist, s.current, speed, s.speed_target, s.speed_coef, diff_ms);
         s.servo.move(Angle::deg(float(s.current)/100.f), std::chrono::milliseconds(diff_ms));
-        //printf("%d %u\n", s.current, diff_ms);
     }
     m_mutex.unlock();
 }
