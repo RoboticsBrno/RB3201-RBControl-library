@@ -42,7 +42,7 @@ public:
     ~Manager();
 
     void initEncoder(uint8_t index);
-    Encoder *encoder(uint8_t index) const { return m_encoders[index]; }
+    Encoder *encoder(uint8_t index) const;
 
     ServoBus& initServoBus(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_num_t pin = GPIO_NUM_32);
     ServoBus& servoBus() { return m_servos; };

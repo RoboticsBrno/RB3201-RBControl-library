@@ -202,6 +202,14 @@ void Manager::initEncoder(uint8_t index) {
     }
 }
 
+Encoder *Manager::encoder(uint8_t index) const {
+    if(m_encoders[index] == NULL) {
+        ESP_LOGE(TAG, "Invalid Manager::encoder(%d) call, this encoder was not initialized. Did you forget to call Manager::initEncoder(%d)?", index, index);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+    return m_encoders[index];
+}
+
 rb::ServoBus& Manager::initServoBus(uint8_t servo_count, uart_port_t uart, gpio_num_t pin) {
     m_servos.install(servo_count, uart, pin);
     return m_servos;
