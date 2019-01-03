@@ -32,7 +32,13 @@ class Manager {
     friend class Encoder;
     friend class PcntInterruptHandler;
 public:
-    Manager();
+
+    /**
+     * The enable_motor_failsafe param toggles the automatic failsafe, where the manager
+     * will automatically turn all motors off if it does not receive any motor set calls
+     * in 300ms. This is to stop the robot when the controller is disconnected.
+     */
+    Manager(bool enable_motor_failsafe = true);
     ~Manager();
 
     void initEncoder(uint8_t index);

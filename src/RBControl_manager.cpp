@@ -19,13 +19,15 @@ static int diff_ms(timeval& t1, timeval& t2) {
 
 namespace rb {
 
-Manager::Manager() :
+Manager::Manager(bool enable_motor_failsafe) :
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
     m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos() {
     m_queue = xQueueCreate(32, sizeof(struct Event));
 
     m_motors_last_set.tv_sec = 0;
-    schedule(MOTORS_FAILSAFE_PERIOD, &Manager::motorsFailSafe, this);
+    if(enable_motor_failsafe) {
+        schedule(MOTORS_FAILSAFE_PERIOD, &Manager::motorsFailSafe, this);
+    }
 
     m_battery.scheduleVoltageUpdating(*this);
 
