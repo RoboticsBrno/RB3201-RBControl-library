@@ -16,6 +16,11 @@
         {
             "name": "Jaroslav Paral",
             "email": "paral@robotikabrno.cz",
+            "url": "http://www.robotikabrno.cz"
+        },
+        {
+            "name": "Vojtěch Boček",
+            "email": "vbocek@gmail.com",
             "url": "http://www.robotikabrno.cz",
 		    "maintainer": true
         }
