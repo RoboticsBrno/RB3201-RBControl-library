@@ -2,6 +2,8 @@
 
 Library for board [RB3201-RBControl](https://github.com/RoboticsBrno/RB3201-RBControl) based on ESP32.
 
+[Library documentation](https://technika.tasemnice.eu/docs/rbcontrol).
+
 Arduino compatible. Available on the [PlatformIO](https://platformio.org/lib/show/5532/RB3201-RBControl).
 
 ## Example
