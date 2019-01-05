@@ -6,12 +6,12 @@
 #include <driver/pcnt.h>
 
 #include "RBControl_util.hpp"
-
+#include "RBControl_pinout.hpp"
 
 namespace rb {
 
-class Manager;
 class Encoder;
+class Manager;
 
 /**
  * \brief The callback type for schedule method. Return true to schedule again.
@@ -21,9 +21,7 @@ typedef void (*EncoderDoneCallback)(Encoder& enc, void *cookie);
 class Encoder{
     friend class Manager;
 public:
-    static const int COUNT = 8;
-
-    Encoder(Manager& man, uint8_t index);
+    Encoder(Manager& man, MotorId id);
     ~Encoder();
 
     void driveToValue(int32_t value, int8_t speed, EncoderDoneCallback callback, void *cookie);
@@ -42,7 +40,7 @@ private:
     void pcnt_init(pcnt_unit_t pcntUnit, gpio_num_t GPIO_A, gpio_num_t GPIO_B);
 
     Manager& m_manager;
-    uint8_t m_index;
+    MotorId m_id;
 
     std::atomic<int32_t> m_counter;
 

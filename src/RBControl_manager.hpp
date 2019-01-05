@@ -41,8 +41,8 @@ public:
     Manager(bool enable_motor_failsafe = true);
     ~Manager();
 
-    void initEncoder(uint8_t index);
-    Encoder *encoder(uint8_t index) const;
+    void initEncoder(MotorId id);
+    Encoder *encoder(MotorId id) const;
 
     ServoBus& initServoBus(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_num_t pin = GPIO_NUM_32);
     ServoBus& servoBus() { return m_servos; };
@@ -53,7 +53,7 @@ public:
     Leds& leds() { return m_leds; } //!< Get the LEDs helper
 
     MotorChangeBuilder setMotors(); //!< Create motor power change builder.
-    void setMotorPower(uint8_t id, int8_t speed); //!< Set single motor power.
+    void setMotorPower(MotorId id, int8_t speed); //!< Set single motor power.
 
     /**
      * Schedule callback to fire after period ms. Return true from the callback
@@ -72,7 +72,7 @@ private:
 
     struct EventMotorsData {
         bool (Motor::*setter_func)(int);
-        uint8_t id;
+        MotorId id;
         int8_t value;
     };
 
@@ -83,13 +83,13 @@ private:
 
             struct {
                 int64_t timestamp;
-                uint8_t index;
+                MotorId id;
                 uint8_t pinLevel;
             } encoderEdge;
 
             struct {
                 uint32_t status;
-                uint8_t index;
+                MotorId id;
             } encoderPcnt;
         } data;
     };
@@ -125,7 +125,7 @@ private:
     rb::Battery m_battery;
     rb::ServoBus m_servos;
 
-    rb::Encoder *m_encoders[Encoder::COUNT];
+    rb::Encoder *m_encoders[static_cast<int>(MotorId::MAX)];
 
 };
 
@@ -139,8 +139,8 @@ public:
     MotorChangeBuilder(MotorChangeBuilder&& o);
     ~MotorChangeBuilder();
 
-    MotorChangeBuilder& power(uint8_t id, int8_t value); //!< Set current motor power to value for motor id
-    MotorChangeBuilder& pwmMaxPercent(uint8_t id, uint8_t pct); //!< Limit motor id's power to pct
+    MotorChangeBuilder& power(MotorId id, int8_t value); //!< Set current motor power to value for motor id
+    MotorChangeBuilder& pwmMaxPercent(MotorId id, uint8_t pct); //!< Limit motor id's power to pct
     void set(bool toFront = false); //!< Finish the changes and submit them
 
 private:

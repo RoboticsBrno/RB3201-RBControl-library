@@ -2,18 +2,19 @@
 
 #include "serialpcm.hpp"
 #include "RBControl_util.hpp"
+#include "RBControl_pinout.hpp"
 
 namespace rb {
 
 /// @private
 class Motor{
-public: 
-    Motor(SerialPCM::value_type & pwm0, 
+public:
+    Motor(SerialPCM::value_type & pwm0,
           SerialPCM::value_type & pwm1,
-          int index) 
-        : pwm0(pwm0), 
+          MotorId id)
+        : pwm0(pwm0),
           pwm1(pwm1),
-          index(index),
+          id(id),
           pwm_max(255),
           pwm_max_percent(100),
           power_max(100),
@@ -33,8 +34,8 @@ public:
     bool power(int power) {
         _power = power;
         power = power * pwm_scale * _invert;
-        power = clamp(power, -pwm_max, pwm_max, "Motor", 
-                      "{}: Clamp the power({} <-> {})", index, -pwm_max, pwm_max);
+        power = clamp(power, -pwm_max, pwm_max, "Motor",
+                      "{}: Clamp the power({} <-> {})", static_cast<int>(id), -pwm_max, pwm_max);
 
         if(power == 0) {
             if(pwm0 == 0 && pwm1 == 0)
@@ -53,19 +54,19 @@ public:
         }
         return true;
     }
- 
+
     int power() {
         return _power;
     }
 
     bool pwmMaxPercent(int percent) {
-        const int new_max_percent = clamp(percent, 0, 100, "Motor", 
+        const int new_max_percent = clamp(percent, 0, 100, "Motor",
                                 "{}: Clamp the pwmMaxPercent(0 - 100)",
-                                index);
+                                static_cast<int>(id));
         if(new_max_percent == pwm_max_percent)
             return false;
         pwm_max_percent = new_max_percent;
-        pwm_scale = (static_cast<float>(pwm_max * pwm_max_percent) / 100) 
+        pwm_scale = (static_cast<float>(pwm_max * pwm_max_percent) / 100)
                     / power_max;
         return true;
     }
@@ -79,9 +80,9 @@ public:
     }
 
 private:
-    SerialPCM::value_type & pwm0; 
+    SerialPCM::value_type & pwm0;
     SerialPCM::value_type & pwm1;
-    int index;
+    MotorId id;
     int pwm_max;
     int pwm_max_percent;
     int _power;

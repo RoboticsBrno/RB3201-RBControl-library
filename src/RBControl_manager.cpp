@@ -33,7 +33,7 @@ Manager::Manager(bool enable_motor_failsafe) :
 
     setupExpander();
 
-    for(int i = 0; i < Encoder::COUNT; ++i) {
+    for(int i = 0; i < static_cast<int>(MotorId::MAX); ++i) {
         m_encoders[i] = NULL;
     }
 
@@ -141,10 +141,9 @@ void Manager::processEvent(struct Manager::Event *ev) {
         break;
     }
     case EVENT_MOTORS_STOP_ALL: {
-        const int count = m_motors.motorCount();
         bool changed = false;
-        for(int i = 0; i < count; ++i) {
-            if(m_motors.motor(i).power(0))
+        for(MotorId id = MotorId::M1; id < MotorId::MAX; ++id) {
+            if(m_motors.motor(id).power(0))
                 changed = true;
         }
         if(changed)
@@ -153,12 +152,12 @@ void Manager::processEvent(struct Manager::Event *ev) {
     }
     case EVENT_ENCODER_EDGE: {
         const auto& e = ev->data.encoderEdge;
-        m_encoders[e.index]->onEdgeIsr(e.timestamp, e.pinLevel);
+        m_encoders[static_cast<int>(e.id)]->onEdgeIsr(e.timestamp, e.pinLevel);
         break;
     }
     case EVENT_ENCODER_PCNT: {
         const auto& e = ev->data.encoderPcnt;
-        m_encoders[e.index]->onPcntIsr(e.status);
+        m_encoders[static_cast<int>(e.id)]->onPcntIsr(e.status);
         break;
     }
     }
@@ -190,24 +189,21 @@ bool Manager::motorsFailSafe(void *cookie) {
     return true;
 }
 
-void Manager::initEncoder(uint8_t index) {
-    if(index >= Encoder::COUNT) {
-        ESP_LOGE(TAG, "Invalid encoder index %d in initEncoder, ignoring.", (int)index);
-        return;
-    }
-
-    if(m_encoders[index] == NULL) {
-        m_encoders[index] = new Encoder(*this, index);
-        m_encoders[index]->install();
+void Manager::initEncoder(MotorId id) {
+    const int iid = static_cast<int>(id);
+    if(m_encoders[iid] == NULL) {
+        m_encoders[iid] = new Encoder(*this, id);
+        m_encoders[iid]->install();
     }
 }
 
-Encoder *Manager::encoder(uint8_t index) const {
-    if(m_encoders[index] == NULL) {
-        ESP_LOGE(TAG, "Invalid Manager::encoder(%d) call, this encoder was not initialized. Did you forget to call Manager::initEncoder(%d)?", index, index);
+Encoder *Manager::encoder(MotorId id) const {
+    const int iid = static_cast<int>(id);
+    if(m_encoders[iid] == NULL) {
+        ESP_LOGE(TAG, "Invalid Manager::encoder(%d) call, this encoder was not initialized. Did you forget to call Manager::initEncoder(%d)?", iid, iid);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
-    return m_encoders[index];
+    return m_encoders[iid];
 }
 
 rb::ServoBus& Manager::initServoBus(uint8_t servo_count, uart_port_t uart, gpio_num_t pin) {
@@ -219,7 +215,7 @@ MotorChangeBuilder Manager::setMotors() {
     return MotorChangeBuilder(*this);
 }
 
-void Manager::setMotorPower(uint8_t id, int8_t speed) {
+void Manager::setMotorPower(MotorId id, int8_t speed) {
     MotorChangeBuilder b(*this);
     b.power(id, speed).set();
 }
@@ -235,7 +231,7 @@ MotorChangeBuilder::MotorChangeBuilder(MotorChangeBuilder&& o) :
 MotorChangeBuilder::~MotorChangeBuilder() {
 }
 
-MotorChangeBuilder& MotorChangeBuilder::power(uint8_t id, int8_t value) {
+MotorChangeBuilder& MotorChangeBuilder::power(MotorId id, int8_t value) {
     m_values->emplace_back(Manager::EventMotorsData{
         .setter_func = &Motor::power,
         .id = id,
@@ -244,7 +240,7 @@ MotorChangeBuilder& MotorChangeBuilder::power(uint8_t id, int8_t value) {
     return *this;
 }
 
-MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(uint8_t id, uint8_t pct) {
+MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(MotorId id, uint8_t pct) {
     m_values->emplace_back(Manager::EventMotorsData{
         .setter_func = &Motor::pwmMaxPercent,
         .id = id,

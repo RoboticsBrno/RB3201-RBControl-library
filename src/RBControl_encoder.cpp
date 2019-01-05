@@ -9,7 +9,7 @@
 
 #define TAG "RbEncoder"
 
-#define ENC_COUNT           8
+#define ENC_COUNT           static_cast<int>(MotorId::MAX)
 #define PCNT_H_LIM_VAL      32767
 #define PCNT_L_LIM_VAL     (-32768)
 #define INC_PER_REVOLUTION  2       //PCNT increments per 1 engine revolution
@@ -69,7 +69,7 @@ void IRAM_ATTR PcntInterruptHandler::isrHandler(void *cookie) {
                 .data = {
                     .encoderPcnt = {
                         .status = PCNT.status_unit[i].val,
-                        .index = (uint8_t)i,
+                        .id = MotorId(i),
                     },
                 },
             };
@@ -82,10 +82,10 @@ void IRAM_ATTR PcntInterruptHandler::isrHandler(void *cookie) {
     }
 }
 
-Encoder::Encoder(rb::Manager& man, uint8_t index) : m_manager(man), m_index(index) {
-    if(m_index >= ENC_COUNT) {
-        ESP_LOGE(TAG, "Invalid encoder index %d, using 0 instead.", m_index);
-        m_index = 0;
+Encoder::Encoder(rb::Manager& man, rb::MotorId id) : m_manager(man), m_id(id) {
+    if(m_id >= MotorId::MAX) {
+        ESP_LOGE(TAG, "Invalid encoder index %d, using 0 instead.", (int)m_id);
+        m_id = MotorId::M1;
     }
 
     m_counter = 0;
@@ -98,8 +98,8 @@ Encoder::Encoder(rb::Manager& man, uint8_t index) : m_manager(man), m_index(inde
 }
 
 void Encoder::install() {
-    const auto encA = ENCODER_PINS[m_index*2];
-    const auto encB = ENCODER_PINS[m_index*2 + 1];
+    const auto encA = ENCODER_PINS[static_cast<int>(m_id)*2];
+    const auto encB = ENCODER_PINS[static_cast<int>(m_id)*2 + 1];
 
     {
         gpio_config_t io_conf;
@@ -121,7 +121,7 @@ void Encoder::install() {
     gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
     gpio_isr_handler_add(encA, isrGpio, this);
 
-    pcnt_init(PCNT_UNITS[m_index], encA, encB);
+    pcnt_init(PCNT_UNITS[static_cast<int>(m_id)], encA, encB);
 }
 
 void Encoder::pcnt_init(pcnt_unit_t pcntUnit, gpio_num_t GPIO_A, gpio_num_t GPIO_B)
@@ -177,8 +177,8 @@ void IRAM_ATTR Encoder::isrGpio(void* cookie)
         .data = {
             .encoderEdge = {
                 .timestamp = esp_timer_get_time(),
-                .index = enc.m_index,
-                .pinLevel = (uint8_t)gpio_get_level(ENCODER_PINS[enc.m_index*2 + 1]),
+                .id = enc.m_id,
+                .pinLevel = (uint8_t)gpio_get_level(ENCODER_PINS[static_cast<int>(enc.m_id)*2 + 1]),
             },
         },
     };
@@ -200,13 +200,13 @@ void Encoder::onEdgeIsr(int64_t timestamp, uint8_t pinLevel) {
         }
         m_counter_time_last = timestamp;
 
-        ESP_LOGD(TAG, "Edge %d %d %d", (int)m_index, value(), (int)pinLevel);
+        ESP_LOGD(TAG, "Edge %d %d %d", (int)m_id, value(), (int)pinLevel);
 
         if(m_target_direction != 0) {
             const auto val = value();
             if ((m_target_direction > 0 && val >= m_target) ||
                 (m_target_direction < 0 && val <= m_target)) {
-                m_manager.setMotors().power(m_index, 0).set(true);
+                m_manager.setMotors().power(m_id, 0).set(true);
                 m_target_direction = 0;
                 callback = m_target_callback;
                 cookie = m_target_cookie;
@@ -233,7 +233,7 @@ void Encoder::onPcntIsr(uint32_t status) {
 
 int32_t Encoder::value() {
     int16_t count = 0;
-    pcnt_get_counter_value(PCNT_UNITS[m_index], &count);
+    pcnt_get_counter_value(PCNT_UNITS[static_cast<int>(m_id)], &count);
     return m_counter.load() + count;
 }
 
@@ -272,7 +272,7 @@ void Encoder::driveToValue(int32_t value, int8_t speed, EncoderDoneCallback call
     m_target_cookie = cookie;
     m_target = value;
     m_target_direction = (value > cur ? 1 : -1);
-    m_manager.setMotorPower(m_index, speed * m_target_direction);
+    m_manager.setMotorPower(m_id, speed * m_target_direction);
     m_time_mutex.unlock();
 }
 
