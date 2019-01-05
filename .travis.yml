@@ -63,4 +63,4 @@ install:
     - platformio update
 
 script:
-    - platformio ci --lib="." --board=esp32dev --project-option="build_unflags = -std=gnu++11" --project-option="build_flags = -std=c++14" # --project-conf="./platoformio.ini" 
+    - platformio ci --lib="." --project-conf="./platformio.ini" 
