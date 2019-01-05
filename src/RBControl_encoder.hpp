@@ -14,7 +14,12 @@ class Encoder;
 class Manager;
 
 /**
- * \brief The callback type for schedule method. Return true to schedule again.
+ * \brief The callback type for Encoder methods.
+ * 
+ * \param enc is instance of required encoder
+ * \param cookie Is parameter for the callback function.
+ *               It must be primitive value (`int`, `bool`, `float`) or `structure/class`.
+ *               If is not necessary, put there `nullptr`. 
  */
 typedef void (*EncoderDoneCallback)(Encoder& enc, void *cookie);
 
@@ -24,10 +29,40 @@ public:
     Encoder(Manager& man, MotorId id);
     ~Encoder();
 
-    void driveToValue(int32_t value, int8_t speed, EncoderDoneCallback callback, void *cookie);
-    void drive(int32_t distance, int8_t speed, EncoderDoneCallback callback, void *cookie);
+    /**
+     * \brief Drive motor to set position (according absolute value).
+     * 
+     * \param positionAbsolute absolute position on which the motor drive \n
+     *        e.g. if the actual motor position (`value()`) is 1000 and the `positionAbsolute` is 100
+     *        then the motor will go backward to position 100 
+     * \param power maximal power of the motor when go to set position, allowed values: <0 - 100>
+     * \param callback is a function which will be call after the motor arrive to set position `[optional]`
+     * \param cookie is parameter for the callback function (more info {@link EncoderDoneCallback}) `[optional]` 
+     */
+    void driveToValue(int32_t positionAbsolute, uint8_t power, EncoderDoneCallback callback = nullptr, void *cookie = nullptr);
+    /**
+     * \brief Drive motor to set position (according relative value).
+     * 
+     * \param positionRelative relative position on which the motor drive \n
+     *        e.g. if the actual motor position (`value()`) is 1000 and the `positionRelative` is 100
+     *        then the motor will go to position 1100
+     * \param power maximal power of the motor when go to set position, allowed values: <0 - 100>
+     * \param callback is a function which will be call after the motor arrive to set position `[optional]`
+     * \param cookie is parameter for the callback function (more info {@link EncoderDoneCallback}) `[optional]`   
+     */
+    void drive(int32_t positionRelative, uint8_t power, EncoderDoneCallback callback = nullptr, void *cookie = nullptr);
 
+    /**
+     * \brief Get number of edges from encoder.
+     * \return The number of counted edges from the first initialize 
+     *         of the encoder {@link Manager::initEncoder}
+     */
     int32_t value();
+
+    /**
+     * \brief Get number of edges per one second.
+     * \return The number of counted edges after one second.
+     */
     float speed();
 private:
     static void IRAM_ATTR isrGpio(void* cookie);
@@ -45,8 +80,8 @@ private:
     std::atomic<int32_t> m_counter;
 
     std::mutex m_time_mutex;
-    int64_t m_counter_time_last;
-    int64_t m_counter_time_diff;
+    int64_t m_counter_time_us_last;
+    int64_t m_counter_time_us_diff;
     int32_t m_target;
     int8_t m_target_direction;
     void *m_target_cookie;
@@ -63,7 +98,6 @@ public:
 private:
     PcntInterruptHandler(Manager *manager);
     ~PcntInterruptHandler();
-
     static void IRAM_ATTR isrHandler(void *cookie);
 };
 

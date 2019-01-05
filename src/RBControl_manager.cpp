@@ -163,11 +163,11 @@ void Manager::processEvent(struct Manager::Event *ev) {
     }
 }
 
-void Manager::schedule(uint32_t period, ManagerTimerCallback callback, void *cookie) {
+void Manager::schedule(uint32_t period_ms, ManagerTimerCallback callback, void *cookie) {
     m_timers_mutex.lock();
     m_timers.emplace_back(Timer {
-        .remaining = period,
-        .period = period,
+        .remaining = period_ms,
+        .period = period_ms,
         .callback = callback,
         .cookie = cookie,
     });
@@ -206,7 +206,7 @@ Encoder *Manager::encoder(MotorId id) const {
     return m_encoders[iid];
 }
 
-rb::ServoBus& Manager::initServoBus(uint8_t servo_count, uart_port_t uart, gpio_num_t pin) {
+rb::SmartServoBus& Manager::initSmartServoBus(uint8_t servo_count, uart_port_t uart, gpio_num_t pin) {
     m_servos.install(servo_count, uart, pin);
     return m_servos;
 }
@@ -240,11 +240,11 @@ MotorChangeBuilder& MotorChangeBuilder::power(MotorId id, int8_t value) {
     return *this;
 }
 
-MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(MotorId id, uint8_t pct) {
+MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(MotorId id, uint8_t percent) {
     m_values->emplace_back(Manager::EventMotorsData{
         .setter_func = &Motor::pwmMaxPercent,
         .id = id,
-        .value = (int8_t)pct
+        .value = (int8_t)percent
     });
     return *this;
 }

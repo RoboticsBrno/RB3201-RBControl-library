@@ -15,11 +15,11 @@ namespace rb {
 class Manager;
 class Encoder;
 
-class ServoBus {
+class SmartServoBus {
     friend class Manager;
 public:
-    ServoBus();
-    ~ServoBus() {}
+    SmartServoBus();
+    ~SmartServoBus() {}
 
     void set(uint8_t id, float angle, float speed = 180.f, float speed_raise = 0.07f);
     void limit(uint8_t id,  Angle b, Angle t);
