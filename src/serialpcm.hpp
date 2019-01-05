@@ -25,10 +25,10 @@ public:
         : c_channels (channels),
           c_bytes(((data_pins.size() + 1)>>3) + 1), // The first +1 is for latch pin
           m_i2s (&i2s),
-          m_buffer_descriptors ({nullptr}),
-          m_buffer ({{nullptr}}),
+          m_buffer_descriptors {nullptr},
+          m_buffer {nullptr},
           m_active_buffer(0),
-          m_pwm (channels * data_pins.size(), 0)
+          m_pwm(channels * data_pins.size(), 0)
     {
         const int buffer_size = c_channels * c_bytes;
         for (int buffer = 0; buffer != sc_buffers; ++buffer) {
@@ -57,7 +57,7 @@ public:
             case 2: cfg.bits = I2S_PARALLEL_BITS_16; break;
             case 3: cfg.bits = I2S_PARALLEL_BITS_32; break;
         }
-        
+
         int i = 0;
         for (int pin: data_pins)
             cfg.gpio_bus[i++] = pin;
