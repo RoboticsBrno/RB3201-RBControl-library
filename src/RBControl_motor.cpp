@@ -60,12 +60,12 @@ void Motor::pwmMaxPercent(int8_t percent) {
     m_man.setMotors().pwmMaxPercent(m_id, percent).set();
 }
 
-void Motor::driveToValue(int32_t positionAbsolute, uint8_t power, EncoderDoneCallback callback, void *cookie) {
-    encoder()->driveToValue(positionAbsolute, power, callback, cookie);
+void Motor::driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback) {
+    encoder()->driveToValue(positionAbsolute, power, callback);
 }
 
-void Motor::drive(int32_t positionRelative, uint8_t power, rb::EncoderDoneCallback callback, void *cookie) {
-    encoder()->drive(positionRelative, power, callback, cookie);
+void Motor::drive(int32_t positionRelative, uint8_t power, std::function<void(Encoder&)> callback) {
+    encoder()->drive(positionRelative, power, callback);
 }
 
 Encoder *Motor::encoder() {

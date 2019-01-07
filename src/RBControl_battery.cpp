@@ -67,12 +67,10 @@ uint32_t Battery::pct() const {
 }
 
 void Battery::scheduleVoltageUpdating(Manager& man) {
-    man.schedule(500, &Battery::updateVoltageTimer, this);
-}
-
-bool Battery::updateVoltageTimer(void *cookie) {
-    ((Battery*)cookie)->updateVoltage();
-    return true;
+    man.schedule(500, [&]()->bool{
+        updateVoltage();
+        return true;
+    });
 }
 
 void Battery::setWarning(bool on) {
