@@ -193,8 +193,7 @@ void IRAM_ATTR Encoder::isrGpio(void* cookie)
 }
 
 void Encoder::onEdgeIsr(int64_t timestamp, uint8_t pinLevel) {
-    EncoderDoneCallback callback = NULL;
-    void *cookie;
+    std::function<void(Encoder&)> callback;
 
     m_time_mutex.lock();
     if(timestamp > m_counter_time_us_last + ENC_DEBOUNCE_US) {
@@ -213,14 +212,13 @@ void Encoder::onEdgeIsr(int64_t timestamp, uint8_t pinLevel) {
                 m_manager.setMotors().power(m_id, 0).set(true);
                 m_target_direction = 0;
                 callback = m_target_callback;
-                cookie = m_target_cookie;
             }
         }
     }
     m_time_mutex.unlock();
 
-    if(callback != NULL)
-        callback(*this, cookie);
+    if(callback)
+        callback(*this);
 }
 
 void Encoder::onPcntIsr(uint32_t status) {
@@ -256,7 +254,7 @@ float Encoder::speed() {
     }
 }
 
-void Encoder::driveToValue(int32_t positionAbsolute, uint8_t power, EncoderDoneCallback callback, void *cookie) {
+void Encoder::driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback) {
     if(power == 0)
         return;
 
@@ -267,19 +265,18 @@ void Encoder::driveToValue(int32_t positionAbsolute, uint8_t power, EncoderDoneC
         return;
 
     m_time_mutex.lock();
-    if(m_target_direction != 0 && m_target_callback != NULL) {
-        m_target_callback(*this, m_target_cookie);
+    if(m_target_direction != 0 && m_target_callback) {
+        m_target_callback(*this);
     }
     m_target_callback = callback;
-    m_target_cookie = cookie;
     m_target = positionAbsolute;
     m_target_direction = (positionAbsolute > current ? 1 : -1);
     m_manager.motor(m_id)->power(static_cast<int8_t>(power) * m_target_direction);
     m_time_mutex.unlock();
 }
 
-void Encoder::drive(int32_t positionRelative, uint8_t power, EncoderDoneCallback callback, void *cookie) {
-    driveToValue(value() + positionRelative, power, callback, cookie);
+void Encoder::drive(int32_t positionRelative, uint8_t power, std::function<void(Encoder&)> callback) {
+    driveToValue(value() + positionRelative, power, callback);
 }
 
 };

@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <memory>
+#include <functional>
 
 #include "serialpcm.hpp"
 #include "RBControl_util.hpp"
@@ -33,11 +34,11 @@ public:
     /**
      * \brief Drive motor to set position (according absolute value). See {@link Encoder::driveToValue}. 
      */
-    void driveToValue(int32_t positionAbsolute, uint8_t power, EncoderDoneCallback callback = nullptr, void *cookie = nullptr);
+    void driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
     /**
      * \brief Drive motor to set position (according relative value). See {@link Encoder::drive}.
      */
-    void drive(int32_t positionRelative, uint8_t power, EncoderDoneCallback callback = nullptr, void *cookie = nullptr);
+    void drive(int32_t positionRelative, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
 
     /**
      * \brief Get the Encoder instance for this motor. See {@link Encoder}.

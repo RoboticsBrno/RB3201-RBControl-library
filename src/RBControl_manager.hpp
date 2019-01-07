@@ -6,6 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <list>
+#include <functional>
 
 #include "RBControl_battery.hpp"
 #include "RBControl_piezo.hpp"
@@ -18,16 +19,6 @@
 namespace rb {
 
 class MotorChangeBuilder;
-
-/**
- * \brief The callback type for schedule method. 
- * 
- * \param cookie Is parameter for the callback function.
- *               It must be primitive value (`int`, `bool`, `float`) or `structure/class`.
- *               If is not necessary, put there `nullptr`. 
- * \return `true` to schedule again, `false` to not (singleshot timer)
- */
-typedef bool (*ManagerTimerCallback)(void *cookie);
 
 /**
  * \brief The main library class for working with the RBControl board. 
@@ -76,10 +67,9 @@ public:
      * Return true from the callback to schedule periodically, false to not (singleshot timer).
      * 
      * \param period_ms is period in which will be the schedule callback fired
-     * \param callback is a function which will be schedule with the set period `[optional]`
-     * \param cookie is parameter for the callback function (more info {@link ManagerTimerCallback}) `[optional]`
+     * \param callback is a function which will be schedule with the set period.
      */
-    void schedule(uint32_t period_ms, ManagerTimerCallback callback = nullptr, void *cookie = nullptr);
+    void schedule(uint32_t period_ms, std::function<bool()> callback);
 
 private:
     enum EventType {
@@ -117,8 +107,7 @@ private:
     struct Timer {
         uint32_t remaining;
         uint32_t period;
-        ManagerTimerCallback callback;
-        void *cookie;
+        std::function<bool()> callback;
     };
 
     void queue(const Event *event, bool toFront = false);
@@ -127,7 +116,7 @@ private:
     void consumerRoutine();
     void processEvent(struct Event *ev);
 
-    static bool motorsFailSafe(void *cookie);
+    bool motorsFailSafe();
 
     void setupExpander();
 

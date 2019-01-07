@@ -34,7 +34,7 @@ private:
     ~Battery();
 
     void scheduleVoltageUpdating(Manager& man);
-    static bool updateVoltageTimer(void *);
+    bool updateVoltageTimer();
     void updateVoltage();
     void setWarning(bool on);
 

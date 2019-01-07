@@ -34,7 +34,7 @@ Manager::Manager(bool enable_motor_failsafe) :
 
     m_motors_last_set.tv_sec = 0;
     if(enable_motor_failsafe) {
-        schedule(MOTORS_FAILSAFE_PERIOD, &Manager::motorsFailSafe, this);
+        schedule(MOTORS_FAILSAFE_PERIOD, std::bind(&Manager::motorsFailSafe, this));
     }
 
     m_battery.scheduleVoltageUpdating(*this);
@@ -113,7 +113,7 @@ void Manager::consumerRoutine() {
         m_timers_mutex.lock();
         for(auto itr = m_timers.begin(); itr != m_timers.end(); ) {
             if((*itr).remaining <= diff) {
-                if(!(*itr).callback((*itr).cookie) || (*itr).period == 0) {
+                if(!(*itr).callback() || (*itr).period == 0) {
                     itr = m_timers.erase(itr);
                     continue;
                 } else {
@@ -170,27 +170,25 @@ void Manager::processEvent(struct Manager::Event *ev) {
     }
 }
 
-void Manager::schedule(uint32_t period_ms, ManagerTimerCallback callback, void *cookie) {
+void Manager::schedule(uint32_t period_ms, std::function<bool()> callback) {
     m_timers_mutex.lock();
     m_timers.emplace_back(Timer {
         .remaining = period_ms,
         .period = period_ms,
         .callback = callback,
-        .cookie = cookie,
     });
     m_timers_mutex.unlock();
 }
 
-bool Manager::motorsFailSafe(void *cookie) {
-    Manager *man = (Manager*)cookie;
-    if(man->m_motors_last_set.tv_sec != 0) {
+bool Manager::motorsFailSafe() {
+    if(m_motors_last_set.tv_sec != 0) {
         struct timeval now;
         gettimeofday(&now, NULL);
-        if(diff_ms(now, man->m_motors_last_set) >= MOTORS_FAILSAFE_PERIOD) {
+        if(diff_ms(now, m_motors_last_set) >= MOTORS_FAILSAFE_PERIOD) {
             ESP_LOGE(TAG, "Motor failsafe triggered, stopping all motors!");
             const Event ev = { .type = EVENT_MOTORS_STOP_ALL, .data = {} };
-            man->queue(&ev);
-            man->m_motors_last_set.tv_sec = 0;
+            queue(&ev);
+            m_motors_last_set.tv_sec = 0;
         }
     }
     return true;
