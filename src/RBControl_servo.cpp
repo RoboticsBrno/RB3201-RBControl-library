@@ -4,10 +4,10 @@
 
 namespace rb {
 
-ServoBus::ServoBus() : m_bus(NULL) {
+SmartServoBus::SmartServoBus() : m_bus(NULL) {
 }
 
-void ServoBus::install(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_num_t pin = GPIO_NUM_32)
+void SmartServoBus::install(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_num_t pin = GPIO_NUM_32)
 {
     m_mutex.lock();
     if(m_bus == NULL) {
@@ -19,7 +19,7 @@ void ServoBus::install(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_
     m_mutex.unlock();
 }
 
-void ServoBus::set(uint8_t id, float angle, float speed, float speed_raise) {
+void SmartServoBus::set(uint8_t id, float angle, float speed, float speed_raise) {
     speed = std::max(1.f, std::min(240.f, speed)) / 10.f;
     angle = std::max(0.f, std::min(360.f, angle)) * 100;
 
@@ -38,13 +38,13 @@ void ServoBus::set(uint8_t id, float angle, float speed, float speed_raise) {
     m_mutex.unlock();
 }
 
-void ServoBus::limit(uint8_t id,  Angle b, Angle t) {
+void SmartServoBus::limit(uint8_t id,  Angle b, Angle t) {
     m_mutex.lock();
     m_servos[id].servo.limit(b, t);
     m_mutex.unlock();
 }
 
-void ServoBus::update(uint32_t diff_ms) {
+void SmartServoBus::update(uint32_t diff_ms) {
     int i =0;
     m_mutex.lock();
     for(auto &s : m_servos) {

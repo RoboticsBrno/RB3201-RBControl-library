@@ -15,8 +15,8 @@
 #define INC_PER_REVOLUTION  2       //PCNT increments per 1 engine revolution
 #define ESP_INTR_FLAG_DEFAULT 0
 #define ENC_DEBOUNCE_US 20          //[microseconds]
-#define MAX_ENGINE_PERIOD 100000    //engine period limit separating zero result [us]
-#define MIN_ENGINE_PERIOD 1000      //engine period limit separating zero results [us]
+#define MAX_ENGINE_PERIOD_US 100000    //engine period limit separating zero result [us]
+#define MIN_ENGINE_PERIOD_US 1000      //engine period limit separating zero results [us]
 
 namespace rb {
 
@@ -89,8 +89,8 @@ Encoder::Encoder(rb::Manager& man, rb::MotorId id) : m_manager(man), m_id(id) {
     }
 
     m_counter = 0;
-    m_counter_time_last = esp_timer_get_time();
-    m_counter_time_diff = 0;
+    m_counter_time_us_last = esp_timer_get_time();
+    m_counter_time_us_diff = 0;
 
     m_target_direction = 0;
     m_target_callback = NULL;
@@ -193,12 +193,12 @@ void Encoder::onEdgeIsr(int64_t timestamp, uint8_t pinLevel) {
     void *cookie;
 
     m_time_mutex.lock();
-    if(timestamp > m_counter_time_last + ENC_DEBOUNCE_US) {
-        m_counter_time_diff = timestamp - m_counter_time_last;
+    if(timestamp > m_counter_time_us_last + ENC_DEBOUNCE_US) {
+        m_counter_time_us_diff = timestamp - m_counter_time_us_last;
         if(pinLevel) {
-            m_counter_time_diff = -m_counter_time_diff;
+            m_counter_time_us_diff = -m_counter_time_us_diff;
         }
-        m_counter_time_last = timestamp;
+        m_counter_time_us_last = timestamp;
 
         ESP_LOGD(TAG, "Edge %d %d %d", (int)m_id, value(), (int)pinLevel);
 
@@ -239,29 +239,27 @@ int32_t Encoder::value() {
 
 float Encoder::speed() {
     m_time_mutex.lock();
-    const auto last = m_counter_time_last;
-    const auto diff = m_counter_time_diff;
+    const auto last = m_counter_time_us_last;
+    const auto diff = m_counter_time_us_diff;
     m_time_mutex.unlock();
 
-    if(esp_timer_get_time() > (last + MAX_ENGINE_PERIOD)) {
+    if(esp_timer_get_time() > (last + MAX_ENGINE_PERIOD_US)) {
         return 0.f;
-    } else if(abs(diff) < MIN_ENGINE_PERIOD) {
+    } else if(abs(diff) < MIN_ENGINE_PERIOD_US) {
         return 0.f;
     } else {
         return 1000000.f / diff;
     }
 }
 
-void Encoder::driveToValue(int32_t value, int8_t speed, EncoderDoneCallback callback, void *cookie) {
-    if(speed == 0)
+void Encoder::driveToValue(int32_t positionAbsolute, uint8_t power, EncoderDoneCallback callback, void *cookie) {
+    if(power == 0)
         return;
-    if(speed < 0)
-        speed = -speed;
 
-    ESP_LOGD(TAG, "driveToValue %d %d %d %p", value, this->value(), speed, callback);
+    ESP_LOGD(TAG, "driveToValue %d %d %d %p", positionAbsolute, this->value(), power, callback);
 
-    const auto cur = this->value();
-    if(cur == value)
+    const auto current = this->value();
+    if(current == positionAbsolute)
         return;
 
     m_time_mutex.lock();
@@ -270,14 +268,14 @@ void Encoder::driveToValue(int32_t value, int8_t speed, EncoderDoneCallback call
     }
     m_target_callback = callback;
     m_target_cookie = cookie;
-    m_target = value;
-    m_target_direction = (value > cur ? 1 : -1);
-    m_manager.setMotorPower(m_id, speed * m_target_direction);
+    m_target = positionAbsolute;
+    m_target_direction = (positionAbsolute > current ? 1 : -1);
+    m_manager.setMotorPower(m_id, static_cast<int8_t>(power) * m_target_direction);
     m_time_mutex.unlock();
 }
 
-void Encoder::drive(int32_t distance, int8_t speed, EncoderDoneCallback callback, void *cookie) {
-    driveToValue(value() + distance, speed, callback, cookie);
+void Encoder::drive(int32_t positionRelative, uint8_t power, EncoderDoneCallback callback, void *cookie) {
+    driveToValue(value() + positionRelative, power, callback, cookie);
 }
 
 };

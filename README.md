@@ -41,3 +41,13 @@ extern "C" void app_main() {
 }
 
 ```
+
+## Testing the library during development
+
+When you want to test the library, when you making some change in the library, use command `pio ci` in the command line/shell:
+
+```sh
+pio ci --lib="." -C "platformio.ini" examples/motors
+```
+
+For testing you can use any project in the folder `examples`. Just replace the `examples/motors` with some other project.
