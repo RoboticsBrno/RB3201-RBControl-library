@@ -25,6 +25,7 @@ typedef void (*EncoderDoneCallback)(Encoder& enc, void *cookie);
 
 class Encoder{
     friend class Manager;
+    friend class Motor;
 public:
     Encoder(Manager& man, MotorId id);
     ~Encoder();

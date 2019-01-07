@@ -7,13 +7,13 @@
 #include <mutex>
 #include <list>
 
-#include "_RBControl_motors.hpp"
 #include "RBControl_battery.hpp"
 #include "RBControl_piezo.hpp"
 #include "Adafruit_MCP23017.h"
 #include "RBControl_leds.hpp"
 #include "RBControl_encoder.hpp"
 #include "RBControl_servo.hpp"
+#include "RBControl_motor.hpp"
 
 namespace rb {
 
@@ -52,17 +52,6 @@ public:
     ~Manager();
 
     /**
-     * \brief Initialize encoder with the index to start working.
-     * \param id of the motor which is set for the encoder (e.g. rb:MotorId::M1)
-     */
-    void initEncoder(MotorId id);
-    /**
-     * \brief Get the instance of selected {@link Encoder}.
-     * \param id of the motor which is set for the encoder (e.g. rb:MotorId::M1)
-     */
-    Encoder *encoder(MotorId id) const;
-
-    /**
      * \brief Initialize the UART servo bus for intelligent servos LX-16.
      * \return Instance of the class {@link SmartServoBus} which manage the intelligent servos.
      */
@@ -78,13 +67,8 @@ public:
     Battery& battery() { return m_battery; } //!< Get the {@link Battery} interface
     Leds& leds() { return m_leds; } //!< Get the {@link Leds} helper
 
+    Motor* motor(MotorId id) { return m_motors[static_cast<int>(id)]; }; //!< Get a motor instance 
     MotorChangeBuilder setMotors(); //!< Create motor power change builder: {@link MotorChangeBuilder}.
-    /**
-     * \brief Set single motor power.
-     * \param id of the motor (e.g. rb:MotorId::M1)
-     * \param power of the motor <-100 - 100>
-     */
-    void setMotorPower(MotorId id, int8_t speed); //!< Set single motor power.
 
     /**
      * \brief Schedule callback to fire after period (in millisecond). 
@@ -107,7 +91,7 @@ private:
 
 
     struct EventMotorsData {
-        bool (Motor::*setter_func)(int);
+        bool (Motor::*setter_func)(int8_t);
         MotorId id;
         int8_t value;
     };
@@ -153,16 +137,14 @@ private:
     std::recursive_mutex m_timers_mutex;
 
     struct timeval m_motors_last_set;
-    rb::Motors m_motors;
+    std::vector<Motor*> m_motors;
+    SerialPCM m_motors_pwm;
 
     Adafruit_MCP23017 m_expander;
     rb::Piezo m_piezo;
     rb::Leds m_leds;
     rb::Battery m_battery;
     rb::SmartServoBus m_servos;
-
-    rb::Encoder *m_encoders[static_cast<int>(MotorId::MAX)];
-
 };
 
 /**
@@ -187,7 +169,7 @@ public:
      * \param id of the motor (e.g. rb:MotorId::M1)
      * \param percent of the maximal power of the motor <0 - 100>
      **/
-    MotorChangeBuilder& pwmMaxPercent(MotorId id, uint8_t percent); 
+    MotorChangeBuilder& pwmMaxPercent(MotorId id, int8_t percent); 
     
     /**
      * \brief Finish the changes and submit the events. 

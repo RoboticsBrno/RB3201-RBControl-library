@@ -1,5 +1,6 @@
 #pragma once
 
+#include <freertos/FreeRTOS.h>
 #include <i2s_parallel.h>
 #include <driver/i2s.h>
 

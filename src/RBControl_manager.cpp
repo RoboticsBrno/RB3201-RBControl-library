@@ -11,7 +11,7 @@
 
 #define EVENT_LOOP_PERIOD (10 / portTICK_PERIOD_MS)
 #define MOTORS_FAILSAFE_PERIOD 300
-
+#define MOTORS_CHANNELS 16
 static int diff_ms(timeval& t1, timeval& t2) {
     return (((t1.tv_sec - t2.tv_sec) * 1000000) +
             (t1.tv_usec - t2.tv_usec))/1000;
@@ -20,9 +20,17 @@ static int diff_ms(timeval& t1, timeval& t2) {
 namespace rb {
 
 Manager::Manager(bool enable_motor_failsafe) :
+    m_motors_pwm {MOTORS_CHANNELS, {SERMOT}, RCKMOT, SCKMOT},
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
     m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos() {
     m_queue = xQueueCreate(32, sizeof(struct Event));
+
+    std::vector<int> pwm_index({12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 1, 2, 6, 7});
+    assert(pwm_index.size()/2 == static_cast<size_t>(MotorId::MAX));
+
+    for(int index = 0; index < pwm_index.size(); index += 2) {
+        m_motors.emplace_back(new Motor(*this, MotorId(index / 2), m_motors_pwm[pwm_index[index]], m_motors_pwm[pwm_index[index + 1]]));
+    }
 
     m_motors_last_set.tv_sec = 0;
     if(enable_motor_failsafe) {
@@ -33,15 +41,14 @@ Manager::Manager(bool enable_motor_failsafe) :
 
     setupExpander();
 
-    for(int i = 0; i < static_cast<int>(MotorId::MAX); ++i) {
-        m_encoders[i] = NULL;
-    }
-
     xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 1, NULL);
 }
 
 Manager::~Manager() {
     vQueueDelete(m_queue);
+
+    for(size_t i = 0; i < m_motors.size(); ++i)
+        delete m_motors[i];
 }
 
 void Manager::setupExpander() {
@@ -128,12 +135,12 @@ void Manager::processEvent(struct Manager::Event *ev) {
         auto data = (std::vector<EventMotorsData>*)ev->data.motors;
         bool changed = false;
         for(const auto& m : *data) {
-            if((m_motors.motor(m.id).*m.setter_func)(m.value)) {
+            if((m_motors[static_cast<int>(m.id)]->*m.setter_func)(m.value)) {
                 changed = true;
             }
         }
         if(changed) {
-            m_motors.update();
+            m_motors_pwm.update();
         }
         delete data;
 
@@ -143,21 +150,21 @@ void Manager::processEvent(struct Manager::Event *ev) {
     case EVENT_MOTORS_STOP_ALL: {
         bool changed = false;
         for(MotorId id = MotorId::M1; id < MotorId::MAX; ++id) {
-            if(m_motors.motor(id).power(0))
+            if(m_motors[static_cast<int>(id)]->direct_power(0))
                 changed = true;
         }
         if(changed)
-            m_motors.update();
+            m_motors_pwm.update();
         break;
     }
     case EVENT_ENCODER_EDGE: {
         const auto& e = ev->data.encoderEdge;
-        m_encoders[static_cast<int>(e.id)]->onEdgeIsr(e.timestamp, e.pinLevel);
+        m_motors[static_cast<int>(e.id)]->enc()->onEdgeIsr(e.timestamp, e.pinLevel);
         break;
     }
     case EVENT_ENCODER_PCNT: {
         const auto& e = ev->data.encoderPcnt;
-        m_encoders[static_cast<int>(e.id)]->onPcntIsr(e.status);
+        m_motors[static_cast<int>(e.id)]->enc()->onPcntIsr(e.status);
         break;
     }
     }
@@ -189,23 +196,6 @@ bool Manager::motorsFailSafe(void *cookie) {
     return true;
 }
 
-void Manager::initEncoder(MotorId id) {
-    const int iid = static_cast<int>(id);
-    if(m_encoders[iid] == NULL) {
-        m_encoders[iid] = new Encoder(*this, id);
-        m_encoders[iid]->install();
-    }
-}
-
-Encoder *Manager::encoder(MotorId id) const {
-    const int iid = static_cast<int>(id);
-    if(m_encoders[iid] == NULL) {
-        ESP_LOGE(TAG, "Invalid Manager::encoder(%d) call, this encoder was not initialized. Did you forget to call Manager::initEncoder(%d)?", iid, iid);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-    return m_encoders[iid];
-}
-
 rb::SmartServoBus& Manager::initSmartServoBus(uint8_t servo_count, uart_port_t uart, gpio_num_t pin) {
     m_servos.install(servo_count, uart, pin);
     return m_servos;
@@ -213,11 +203,6 @@ rb::SmartServoBus& Manager::initSmartServoBus(uint8_t servo_count, uart_port_t u
 
 MotorChangeBuilder Manager::setMotors() {
     return MotorChangeBuilder(*this);
-}
-
-void Manager::setMotorPower(MotorId id, int8_t speed) {
-    MotorChangeBuilder b(*this);
-    b.power(id, speed).set();
 }
 
 MotorChangeBuilder::MotorChangeBuilder(Manager &manager) : m_manager(manager) {
@@ -233,16 +218,16 @@ MotorChangeBuilder::~MotorChangeBuilder() {
 
 MotorChangeBuilder& MotorChangeBuilder::power(MotorId id, int8_t value) {
     m_values->emplace_back(Manager::EventMotorsData{
-        .setter_func = &Motor::power,
+        .setter_func = &Motor::direct_power,
         .id = id,
         .value = value
     });
     return *this;
 }
 
-MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(MotorId id, uint8_t percent) {
+MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(MotorId id, int8_t percent) {
     m_values->emplace_back(Manager::EventMotorsData{
-        .setter_func = &Motor::pwmMaxPercent,
+        .setter_func = &Motor::direct_pwmMaxPercent,
         .id = id,
         .value = (int8_t)percent
     });
