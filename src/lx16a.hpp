@@ -268,10 +268,10 @@ struct Bus {
 
     void send( const std::vector< uint8_t >& data ) {
         _switchToTxMode();
-        ESP_ERROR_CHECK( uart_wait_tx_done( _uart, 100 ) );
         auto *buffer = reinterpret_cast< const char * >( data.data() );
         //uart_write_bytes(_uart, buffer, data.size() );
         uart_tx_chars( _uart, buffer, data.size() );
+        ESP_ERROR_CHECK( uart_wait_tx_done( _uart, 100 ) );
     }
 
     Packet receive( int len ) {
