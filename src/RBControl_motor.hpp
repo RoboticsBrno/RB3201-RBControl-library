@@ -56,11 +56,12 @@ private:
     bool direct_power(int8_t power);
     bool direct_pwmMaxPercent(int8_t percent);
 
+    Manager& m_man;
+
     SerialPCM::value_type & m_pwm0;
     SerialPCM::value_type & m_pwm1;
     MotorId m_id;
-    Manager& m_man;
-    
+
     std::mutex m_mutex;
     std::unique_ptr<Encoder> m_encoder;
     int8_t m_power;
