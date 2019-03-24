@@ -6,4 +6,4 @@
 
 #define RB3201_MAJOR 2
 #define RB3201_MINOR 0
-#define RB3201_PATCH 1
+#define RB3201_PATCH 3
