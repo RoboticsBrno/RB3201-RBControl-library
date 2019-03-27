@@ -154,7 +154,7 @@ struct Packet {
     bool valid() {
         if ( _data.size() < 6 )
             return false;
-        uint8_t c = _checksum( _data, 2, 0 );
+        uint8_t c = _checksum( _data, 2, 1 );
         if ( c != _data.back() )
             return false;
         if ( size() + 3 != _data.size() )
@@ -162,17 +162,17 @@ struct Packet {
         return true;
     }
 
-    /*void dump() {
-        Serial.print("[");
+    void dump() {
+        printf("[");
         bool first = true;
         for ( auto x : _data ) {
             if ( !first )
-                Serial.print(", ");
+                printf(", ");
             first = false;
-            Serial.print( x, HEX );
+            printf("%02X", (int)x);
         }
-        Serial.println("]");
-    }*/
+        printf("]\n");
+    }
 
     std::vector< uint8_t > _data;
 };
@@ -190,6 +190,7 @@ struct Bus {
             .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         };
         ESP_ERROR_CHECK( uart_param_config( _uart, &uart_config ) );
+        _switchToRxMode();
         _switchToTxMode();
         const int uart_buffer_size = (1024 * 2);
         ESP_ERROR_CHECK(uart_driver_install(_uart, uart_buffer_size, uart_buffer_size,
@@ -257,27 +258,30 @@ struct Bus {
 
     void _switchToTxMode() {
         gpio_output_disable( _pin );
-        ESP_ERROR_CHECK (uart_set_pin( _uart, _pin, UART_PIN_NO_CHANGE,
+        ESP_ERROR_CHECK (uart_set_pin( _uart, _pin, GPIO_NUM_9,
             UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE ) );
     }
 
     void _switchToRxMode() {
-        ESP_ERROR_CHECK (uart_set_pin( _uart, UART_PIN_NO_CHANGE, _pin,
+        //uart_flush(_uart);
+        ESP_ERROR_CHECK (uart_set_pin( _uart, GPIO_NUM_9, _pin,
             UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE ) );
+            
     }
 
     void send( const std::vector< uint8_t >& data ) {
-        _switchToTxMode();
+        //_switchToTxMode();
         auto *buffer = reinterpret_cast< const char * >( data.data() );
-        //uart_write_bytes(_uart, buffer, data.size() );
-        uart_tx_chars( _uart, buffer, data.size() );
+        uart_write_bytes(_uart, buffer, data.size() );
+        //uart_tx_chars( _uart, buffer, data.size() );
         ESP_ERROR_CHECK( uart_wait_tx_done( _uart, 100 ) );
     }
 
     Packet receive( int len ) {
         _switchToRxMode();
-        uint8_t buff[ 32 ];
-        uart_read_bytes( _uart, buff, len, 100 );
+        uint8_t buff[ 32 ] = { 0 };
+        uart_read_bytes( _uart, buff, len, 300 );
+        _switchToTxMode();
         return Packet( buff, len );
     }
 

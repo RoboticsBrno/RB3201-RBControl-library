@@ -23,6 +23,7 @@ public:
 
     void set(uint8_t id, float angle, float speed = 180.f, float speed_raise = 0.04f);
     void limit(uint8_t id,  Angle b, Angle t);
+    float pos(uint8_t id);
 
 private:
     void install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin);

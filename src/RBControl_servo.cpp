@@ -47,6 +47,23 @@ void SmartServoBus::limit(uint8_t id,  Angle b, Angle t) {
 void SmartServoBus::update(uint32_t diff_ms) {
     int i =0;
     m_mutex.lock();
+
+    uint8_t buff[ 32 ] = { 0 };
+    size_t avail = 0;
+#if 0
+    if(uart_get_buffered_data_len(m_bus->_uart, &avail) == ESP_OK && avail >= 5) {
+        uart_read_bytes( m_bus->_uart, buff, 5, 0);
+        lw::Packet pkt(buff, 5);
+        uart_read_bytes( m_bus->_uart, buff, pkt.size() - 2, 100);
+        pkt._data.insert(pkt._data.end(), buff, buff + (pkt.size() - 2));
+        pkt.dump();
+    }
+#elif 0
+    while(uart_get_buffered_data_len(m_bus->_uart, &avail) == ESP_OK && avail > 0) {
+        uart_read_bytes( m_bus->_uart, buff, 1, 0);
+        printf("%02x ", (int)buff[0]);
+    }
+#endif
     for(auto &s : m_servos) {
         i++;
         if(s.current == s.target)
@@ -77,6 +94,25 @@ void SmartServoBus::update(uint32_t diff_ms) {
         s.servo.move(Angle::deg(float(s.current)/100.f), std::chrono::milliseconds(diff_ms));
     }
     m_mutex.unlock();
+}
+
+float SmartServoBus::pos(uint8_t id) {
+    lw::Packet pkt(id+1, lw::Command::SERVO_POS_READ);
+
+    m_bus->send(pkt._data);
+    pkt = m_bus->receive(8);
+    pkt.dump();
+    if(pkt.valid()) {
+        float val = (float)((pkt._data[6] << 8) | pkt._data[5]);
+        val = (val / 1000.f) * 240.f;
+        m_mutex.lock();
+        m_servos[id].current = val* 100;
+        m_servos[id].target = val* 100;
+        m_servos[id].servo.move(Angle::deg(val));
+        m_mutex.unlock();
+        return val;
+    }
+    return nanf("");
 }
 
 }; // namespace rb
