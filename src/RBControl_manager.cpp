@@ -48,7 +48,7 @@ Manager::Manager(bool enable_motor_failsafe, bool enable_battery) :
 
     setupExpander();
 
-    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 1, NULL);
+    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 2, NULL);
 }
 
 Manager::~Manager() {
@@ -103,7 +103,6 @@ void Manager::consumerRoutineTrampoline(void *cookie) {
 void Manager::consumerRoutine() {
     struct Event ev;
     struct timeval tv_last, tv_now;
-
     gettimeofday(&tv_last, NULL);
 
     while(true) {
@@ -114,8 +113,6 @@ void Manager::consumerRoutine() {
         gettimeofday(&tv_now, NULL);
         const uint32_t diff = diff_ms(tv_now, tv_last);
         tv_last = tv_now;
-
-        m_servos.update(diff);
 
         m_timers_mutex.lock();
         for(auto itr = m_timers.begin(); itr != m_timers.end(); ) {

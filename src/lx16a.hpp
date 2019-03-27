@@ -6,55 +6,9 @@
 #include <soc/io_mux_reg.h>
 #include <chrono>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-// Hack
-inline esp_err_t gpio_output_disable(gpio_num_t gpio_num)
-{
-    if (gpio_num < 32) {
-        GPIO.enable_w1tc = (0x1 << gpio_num);
-    } else {
-        GPIO.enable1_w1tc.data = (0x1 << (gpio_num - 32));
-    }
-
-    // Ensure no other output signal is routed via GPIO matrix to this pin
-    REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (gpio_num * 4),
-              SIG_GPIO_OUT_IDX);
-
-    return ESP_OK;
-}
-
-class Angle {
-public:
-    static Angle rad( float r ) { return Angle( 180 * r / M_PI ); }
-    static Angle deg( float d ) { return Angle( d ); }
-
-    Angle& operator+=( Angle a ) { _degs += a._degs; return *this; }
-    Angle& operator-=( Angle a ) { _degs -= a._degs; return *this; }
-    Angle& operator*=( double c ) { _degs *= c; return *this; }
-    Angle& operator/=( double c ) { _degs /= c; return *this; }
-
-    float deg() const { return _degs; }
-    float rad() const { return _degs / 180.0 * M_PI; }
-private:
-    float _degs;
-    Angle( float d ): _degs( d ) {}
-};
-
-Angle operator+( Angle a, Angle b );
-Angle operator-( Angle a, Angle b );
-Angle operator*( Angle a, float c );
-Angle operator/( Angle a, float c );
-Angle operator"" _deg ( long double d );
-Angle operator"" _rad ( long double r );
-Angle operator"" _deg ( unsigned long long int d );
-Angle operator"" _rad ( unsigned long long int r );
+#include "RBControl_angle.hpp"
 
 namespace lw {
-
-int fromDeg( int angle );
 
 enum class Command {
     SERVO_MOVE_TIME_WRITE = 1,
@@ -111,7 +65,7 @@ struct Packet {
     static Packet move( Id id, uint16_t position, uint16_t time ) {
         return Packet( id, Command::SERVO_MOVE_TIME_WRITE,
             position & 0xFF, position >> 8,
-            time && 0xFF, time >> 8 );
+            time & 0xFF, time >> 8 );
     }
 
     static Packet limitAngle( Id id, uint16_t low, uint16_t high ) {
@@ -145,16 +99,16 @@ struct Packet {
         return ~sum;
     }
 
-    int size() {
+    int size() const {
         if ( _data.size() < 4 )
             return -1;
         return _data[ 3 ];
     }
 
-    bool valid() {
+    bool valid() const {
         if ( _data.size() < 6 )
             return false;
-        uint8_t c = _checksum( _data, 2, 0 );
+        uint8_t c = _checksum( _data, 2, 1 );
         if ( c != _data.back() )
             return false;
         if ( size() + 3 != _data.size() )
@@ -162,130 +116,67 @@ struct Packet {
         return true;
     }
 
-    /*void dump() {
-        Serial.print("[");
+    void dump() {
+        printf("[");
         bool first = true;
         for ( auto x : _data ) {
             if ( !first )
-                Serial.print(", ");
+                printf(", ");
             first = false;
-            Serial.print( x, HEX );
+            printf("%02X", (int)x);
         }
-        Serial.println("]");
-    }*/
+        printf("]\n");
+    }
 
     std::vector< uint8_t > _data;
 };
 
-struct Bus {
-    Bus( uart_port_t uart, gpio_num_t pin ) :
-        _uart( uart ),
-        _pin( pin )
-    {
-        uart_config_t uart_config = {
-            .baud_rate = 115200,
-            .data_bits = UART_DATA_8_BITS,
-            .parity = UART_PARITY_DISABLE,
-            .stop_bits = UART_STOP_BITS_1,
-            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        };
-        ESP_ERROR_CHECK( uart_param_config( _uart, &uart_config ) );
-        _switchToTxMode();
-        const int uart_buffer_size = (1024 * 2);
-        ESP_ERROR_CHECK(uart_driver_install(_uart, uart_buffer_size, uart_buffer_size,
-            10, &_uart_queue, 0));
+class Servo {
+public:
+    static int posFromDeg( float angle ) {
+        return angle * 1000 / 240;
     }
 
-    struct Servo {
-    public:
-        // Move servo to given position (in degree) in given time (in milliseconds)
-        void move( Angle pos, std::chrono::milliseconds t ) {
-            int position = pos.deg();
-            int time = t.count();
-            if ( position < 0 || position > 240 )
-                throw std::runtime_error( "Position out of range" );
-            if ( time < 0 )
-                throw std::runtime_error( "Time is negative" );
-            if ( time > 30000 )
-                throw std::runtime_error( "Time is out of range" );
-            auto p = Packet::move( _id, fromDeg( position ), time );
-            _bus.send( p._data );
-        }
-
-        void move( Angle pos ) {
-            int position = pos.deg();
-            if ( position < 0 || position > 240 )
-                throw std::runtime_error( "Position out of range" );
-            auto p = Packet::move( _id, fromDeg( position ), 0 );
-            _bus.send( p._data );
-        }
-
-        // Set limits for the movement
-        void limit( Angle b, Angle t ) {
-            int bottom = b.deg();
-            int top = t.deg();
-            if ( bottom < 0 || bottom > 240 )
-                throw std::runtime_error( "Bottom limit out of range" );
-            if ( top < 0 || top > 240 )
-                throw std::runtime_error( "Top limit out of range" );
-            auto p = Packet::limitAngle( _id, fromDeg( bottom ), fromDeg( top ) );
-            _bus.send( p._data );
-        }
-
-        void setId( Id newId ) {
-            if ( newId >= 254 )
-                throw std::runtime_error( "Invalid ID specified" );
-            auto p = Packet::setId( _id, newId );
-            _bus.send( p._data );
-        }
-
-        friend class Bus;
-    private:
-        Servo( Id id, Bus& bus ) : _id( id ), _bus( bus ) {}
-
-        Id _id;
-        Bus& _bus;
-    };
-
-    Servo getServo( Id id ) {
-        return Servo( id, *this );
+    // Move servo to given position (in degree) in given time (in milliseconds)
+    static Packet move(Id id, rb::Angle pos, std::chrono::milliseconds t ) {
+        float position = pos.deg();
+        int time = t.count();
+        if ( position < 0 || position > 240 )
+            throw std::runtime_error( "Position out of range" );
+        if ( time < 0 )
+            throw std::runtime_error( "Time is negative" );
+        if ( time > 30000 )
+            throw std::runtime_error( "Time is out of range" );
+        auto p = Packet::move( id, Servo::posFromDeg( position ), time );
+        return p;
     }
 
-    Servo allServos() {
-        return Servo( 254, *this );
+    static Packet move(Id id, rb::Angle pos ) {
+        float position = pos.deg();
+        if ( position < 0 || position > 240 )
+            throw std::runtime_error( "Position out of range" );
+        auto p = Packet::move( id, Servo::posFromDeg( position ), 0 );
+        return p;
     }
 
-    void _switchToTxMode() {
-        gpio_output_disable( _pin );
-        ESP_ERROR_CHECK (uart_set_pin( _uart, _pin, UART_PIN_NO_CHANGE,
-            UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE ) );
+    // Set limits for the movement
+    static Packet limit(Id id, rb::Angle b, rb::Angle t ) {
+        int bottom = b.deg();
+        int top = t.deg();
+        if ( bottom < 0 || bottom > 240 )
+            throw std::runtime_error( "Bottom limit out of range" );
+        if ( top < 0 || top > 240 )
+            throw std::runtime_error( "Top limit out of range" );
+        auto p = Packet::limitAngle( id, Servo::posFromDeg( bottom ), Servo::posFromDeg( top ) );
+        return p;
     }
 
-    void _switchToRxMode() {
-        ESP_ERROR_CHECK (uart_set_pin( _uart, UART_PIN_NO_CHANGE, _pin,
-            UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE ) );
+    static Packet setId( Id oldId, Id newId ) {
+        if ( newId >= 254 )
+            throw std::runtime_error( "Invalid ID specified" );
+        auto p = Packet::setId( oldId, newId );
+        return p;
     }
-
-    void send( const std::vector< uint8_t >& data ) {
-        _switchToTxMode();
-        auto *buffer = reinterpret_cast< const char * >( data.data() );
-        //uart_write_bytes(_uart, buffer, data.size() );
-        uart_tx_chars( _uart, buffer, data.size() );
-        ESP_ERROR_CHECK( uart_wait_tx_done( _uart, 100 ) );
-    }
-
-    Packet receive( int len ) {
-        _switchToRxMode();
-        uint8_t buff[ 32 ];
-        uart_read_bytes( _uart, buff, len, 100 );
-        return Packet( buff, len );
-    }
-
-    QueueHandle_t _uart_queue;
-    uart_port_t _uart;
-    gpio_num_t _pin;
 };
-
-using Servo = Bus::Servo;
 
 } // namespace lw

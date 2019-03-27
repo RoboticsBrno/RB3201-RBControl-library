@@ -50,7 +50,7 @@ public:
      * \brief Initialize the UART servo bus for intelligent servos LX-16.
      * \return Instance of the class {@link SmartServoBus} which manage the intelligent servos.
      */
-    SmartServoBus& initSmartServoBus(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_num_t pin = GPIO_NUM_32);
+    SmartServoBus& initSmartServoBus(uint8_t servo_count, uart_port_t uart = UART_NUM_1, gpio_num_t pin = GPIO_NUM_14);
     /**
      * \brief Get the {@link SmartServoBus} for working with intelligent servos LX-16..
      * \return Instance of the class {@link SmartServoBus} which manage the intelligent servos.
@@ -169,7 +169,6 @@ public:
      * \param id of the motor (e.g. rb:MotorId::M1)
      **/
     MotorChangeBuilder& stop(MotorId id);
-
 
     /**
      * \brief Finish the changes and submit the events.

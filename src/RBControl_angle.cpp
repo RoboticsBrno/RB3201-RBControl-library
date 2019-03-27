@@ -1,4 +1,8 @@
-#include "lx16a.hpp"
+#include "RBControl_angle.hpp"
+
+namespace rb {
+
+const Angle Angle::Pi = Angle::rad(Angle::Type(M_PI));
 
 Angle operator+( Angle a, Angle b ) {
     a += b;
@@ -10,22 +14,22 @@ Angle operator-( Angle a, Angle b ) {
     return a;
 }
 
-Angle operator*( Angle a, float c ) {
+Angle operator*( Angle a, Angle::Type c ) {
     a *= c;
     return a;
 }
 
-Angle operator/( Angle a, float c ) {
+Angle operator/( Angle a, Angle::Type c ) {
     a /= c;
     return a;
 }
 
 Angle operator"" _deg ( long double d ) {
-    return Angle::deg( d );
+    return Angle::deg( Angle::Type(d) );
 }
 
 Angle operator"" _rad ( long double r ) {
-    return Angle::rad( r );
+    return Angle::rad( Angle::Type(r) );
 }
 
 Angle operator"" _deg ( unsigned long long int d ) {
@@ -36,10 +40,4 @@ Angle operator"" _rad ( unsigned long long int r ) {
     return Angle::rad( r );
 }
 
-namespace lw {
-
-int fromDeg( int angle ) {
-    return angle * 1000 / 240;
-}
-
-}
+}; // namespace rb
