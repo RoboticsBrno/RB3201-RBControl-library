@@ -50,6 +50,12 @@ python:
     - "2.7"
 
 sudo: false
+
+addons:
+  apt:
+    packages:
+      - doxygen
+
 cache:
     directories:
         - "~/.platformio"
@@ -64,3 +70,12 @@ install:
 
 script:
     - platformio ci --lib="." --project-conf="./platformio.ini" 
+    - doxygen Doxyfile
+    
+deploy:
+  provider: pages
+  skip_cleanup: true
+  local_dir: doc/html
+  github_token: $GH_REPO_TOKEN
+  on:
+    branch: master
