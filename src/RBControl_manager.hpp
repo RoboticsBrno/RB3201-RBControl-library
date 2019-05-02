@@ -21,7 +21,7 @@ namespace rb {
 class MotorChangeBuilder;
 
 /**
- * \brief The main library class for working with the RBControl board. 
+ * \brief The main library class for working with the RBControl board.
  *        Keep an instance of it through the whole program.
  */
 class Manager {
@@ -32,14 +32,18 @@ public:
 
     /**
      * \brief Constructor of class Manager - main class for working with the RBControl board.
-     * 
+     *
      * The `enable_motor_failsafe` parameter toggles the automatic failsafe, where the manager
      * will automatically turn all motors off if it does not receive any motor set calls
      * in 300ms. This is to stop the robot when the controller is disconnected.
-     * 
+     *
+     * The `enable_battery` parameter enables battery voltage measurement and auto-shutdown
+     * when the voltage is low.
+     *
      * \param enable_motor_failsafe `true` activate the automatic failsafe, `false` deactivate this system
+     * \param enable_battery `true` activates the battery voltage measurement and management.
      */
-    Manager(bool enable_motor_failsafe = true);
+    Manager(bool enable_motor_failsafe = true, bool enable_battery = true);
     ~Manager();
 
     /**
@@ -58,14 +62,14 @@ public:
     Battery& battery() { return m_battery; } //!< Get the {@link Battery} interface
     Leds& leds() { return m_leds; } //!< Get the {@link Leds} helper
 
-    Motor* motor(MotorId id) { return m_motors[static_cast<int>(id)]; }; //!< Get a motor instance 
+    Motor* motor(MotorId id) { return m_motors[static_cast<int>(id)]; }; //!< Get a motor instance
     MotorChangeBuilder setMotors(); //!< Create motor power change builder: {@link MotorChangeBuilder}.
 
     /**
-     * \brief Schedule callback to fire after period (in millisecond). 
-     * 
+     * \brief Schedule callback to fire after period (in millisecond).
+     *
      * Return true from the callback to schedule periodically, false to not (singleshot timer).
-     * 
+     *
      * \param period_ms is period in which will be the schedule callback fired
      * \param callback is a function which will be schedule with the set period.
      */
@@ -152,16 +156,16 @@ public:
      * \param power of the motor <-100 - 100>
      **/
     MotorChangeBuilder& power(MotorId id, int8_t value);
-    
+
     /**
      * \brief Limit motor index's power to percent.
      * \param id of the motor (e.g. rb:MotorId::M1)
      * \param percent of the maximal power of the motor <0 - 100>
      **/
-    MotorChangeBuilder& pwmMaxPercent(MotorId id, int8_t percent); 
-    
+    MotorChangeBuilder& pwmMaxPercent(MotorId id, int8_t percent);
+
     /**
-     * \brief Finish the changes and submit the events. 
+     * \brief Finish the changes and submit the events.
      * \param toFront add this event to front of the event queue
      **/
     void set(bool toFront = false);

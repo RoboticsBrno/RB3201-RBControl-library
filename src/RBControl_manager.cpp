@@ -19,7 +19,7 @@ static int diff_ms(timeval& t1, timeval& t2) {
 
 namespace rb {
 
-Manager::Manager(bool enable_motor_failsafe) :
+Manager::Manager(bool enable_motor_failsafe, bool enable_battery) :
     m_motors_pwm {MOTORS_CHANNELS, {SERMOT}, RCKMOT, SCKMOT},
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
     m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos() {
@@ -37,7 +37,9 @@ Manager::Manager(bool enable_motor_failsafe) :
         schedule(MOTORS_FAILSAFE_PERIOD, std::bind(&Manager::motorsFailSafe, this));
     }
 
-    m_battery.scheduleVoltageUpdating(*this);
+    if(enable_battery) {
+        m_battery.scheduleVoltageUpdating(*this);
+    }
 
     setupExpander();
 
