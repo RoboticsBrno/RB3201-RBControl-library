@@ -14,18 +14,20 @@
 
 namespace rb {
 
-Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander) : m_piezo(piezo), m_leds(leds), m_expander(expander) {
+Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander, bool enable_battery) : m_piezo(piezo), m_leds(leds), m_expander(expander) {
     m_warningOn = false;
     m_undervoltedCounter = 0;
     m_coef = BATTERY_DEFAULT_COEF;
 
-    m_expander.digitalWrite(POWER_OFF_EXPANDER, 1);
-    m_expander.pinMode(POWER_OFF_EXPANDER, GPIO_MODE_OUTPUT);
+    if(enable_battery) {
+        m_expander.digitalWrite(POWER_OFF_EXPANDER, 1);
+        m_expander.pinMode(POWER_OFF_EXPANDER, GPIO_MODE_OUTPUT);
 
-    adc1_config_width(ADC_WIDTH_12Bit);
-    adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_11);
+        adc1_config_width(ADC_WIDTH_12Bit);
+        adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_11);
 
-    updateVoltage();
+        updateVoltage();
+    }
 }
 
 Battery::~Battery() {

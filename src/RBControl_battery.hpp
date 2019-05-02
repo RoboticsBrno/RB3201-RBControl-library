@@ -15,7 +15,7 @@ class Manager;
 class Battery {
     friend class Manager;
 
-public: 
+public:
     static const uint32_t VOLTAGE_MIN = 3300*2; //!< Minimal battery voltage, in mV, at which the robot shuts down
     static const uint32_t VOLTAGE_MAX = 4200*2; //!< Maximal battery voltage, in mV
     static const uint32_t VOLTAGE_WARNING = 3500*2; //!< The voltage at which alert triggers
@@ -30,7 +30,7 @@ public:
     void shutdown(); //!< shuts the robot down
 
 private:
-    Battery(Piezo& piezo, Leds& leds, Adafruit_MCP23017& expander);
+    Battery(Piezo& piezo, Leds& leds, Adafruit_MCP23017& expander, bool enable_battery = true);
     ~Battery();
 
     void scheduleVoltageUpdating(Manager& man);

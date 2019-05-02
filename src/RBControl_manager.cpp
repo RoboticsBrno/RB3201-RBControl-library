@@ -22,7 +22,7 @@ namespace rb {
 Manager::Manager(bool enable_motor_failsafe, bool enable_battery) :
     m_motors_pwm {MOTORS_CHANNELS, {SERMOT}, RCKMOT, SCKMOT},
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
-    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos() {
+    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander, enable_battery), m_servos() {
     m_queue = xQueueCreate(32, sizeof(struct Event));
 
     std::vector<int> pwm_index({12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 1, 2, 6, 7});
