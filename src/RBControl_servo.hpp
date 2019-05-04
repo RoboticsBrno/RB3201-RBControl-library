@@ -29,6 +29,16 @@ private:
     void install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin);
     void update(uint32_t diff_ms);
 
+    static void uartRoutineTrampoline(void *cookie);
+    void uartRoutine();
+    size_t uartReceive(uint8_t *buff, size_t bufcap);
+    void uartSwitchToTx();
+
+    void send(const char *data, size_t size,
+        QueueHandle_t responseQueue = NULL, bool expect_response = false);
+    void send(const lw::Packet& pkt,
+        QueueHandle_t responseQueue = NULL, bool expect_response = false);
+
     struct servo_info {
         servo_info(const lw::Bus::Servo& s) : servo(s) {
             current = 0xFFFF;
@@ -46,10 +56,26 @@ private:
         lw::Bus::Servo servo;
     };
 
+    struct tx_request {
+        char data[16];
+        uint8_t size;
+        bool expect_response;
+        QueueHandle_t responseQueue;
+    };
+
+    struct rx_response {
+        uint8_t data[16];
+        uint8_t size;
+    };
+
     lw::Bus *m_bus;
 
     std::vector<servo_info> m_servos;
     std::mutex m_mutex;
+
+    QueueHandle_t m_uart_queue;
+    uart_port_t m_uart;
+    gpio_num_t m_uart_pin;
 };
 
 };

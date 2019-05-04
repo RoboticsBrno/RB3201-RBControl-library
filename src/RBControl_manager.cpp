@@ -41,7 +41,7 @@ Manager::Manager(bool enable_motor_failsafe) :
 
     setupExpander();
 
-    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 1, NULL);
+    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 2, NULL);
 }
 
 Manager::~Manager() {
