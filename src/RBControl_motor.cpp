@@ -4,7 +4,7 @@
 
 namespace rb {
 
-#define PWM_MAX 255
+#define PWM_MAX SerialPWM::resolution()
 #define POWER_MAX 100
 
 Motor::Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::value_type & pwm1) :

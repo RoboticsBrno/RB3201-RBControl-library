@@ -35,7 +35,7 @@ private:
     static volatile void* i2snum2struct(const int num);
 
     static constexpr int sc_buffers = 2;
-    static constexpr int sc_resolution = 255;
+    static constexpr int sc_resolution = 100;
     const int c_channels;
     const int c_bytes;
     volatile void* m_i2s; // m_i2s is actually i2s_dev_t*, but this is an anonymous struct in the Espressif header i2s_struct.h and that causes a compilation error
