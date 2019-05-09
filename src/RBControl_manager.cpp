@@ -96,7 +96,6 @@ void Manager::consumerRoutineTrampoline(void *cookie) {
 void Manager::consumerRoutine() {
     struct Event ev;
     struct timeval tv_last, tv_now;
-
     gettimeofday(&tv_last, NULL);
 
     while(true) {
@@ -107,8 +106,6 @@ void Manager::consumerRoutine() {
         gettimeofday(&tv_now, NULL);
         const uint32_t diff = diff_ms(tv_now, tv_last);
         tv_last = tv_now;
-
-        m_servos.update(diff);
 
         m_timers_mutex.lock();
         for(auto itr = m_timers.begin(); itr != m_timers.end(); ) {

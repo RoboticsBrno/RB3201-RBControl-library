@@ -6,6 +6,8 @@
 
 #include "uart.h"
 
+#define MS_TO_TICKS(ms) ((portTICK_PERIOD_MS <= ms) ? (ms / portTICK_PERIOD_MS) : 1)
+
 namespace rb {
 
 SmartServoBus::SmartServoBus() : m_bus(NULL) {
@@ -26,7 +28,9 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
     m_mutex.unlock();
 
     m_uart_queue = xQueueCreate(64, sizeof(struct tx_request));
-    xTaskCreate(&SmartServoBus::uartRoutineTrampoline, "rbsmartservobus_uart", 4096, this, 1, NULL);
+    xTaskCreatePinnedToCore(&SmartServoBus::uartRoutineTrampoline,
+        "rbsmartservobus_uart", 4096, this, 1, NULL, 0);
+    xTaskCreate(&SmartServoBus::regulatorRoutineTrampoline, "rbsmartservobus_reg", 4096, this, 2, NULL);
 }
 
 void SmartServoBus::set(uint8_t id, float angle, float speed, float speed_raise) {
@@ -55,56 +59,57 @@ void SmartServoBus::limit(uint8_t id,  Angle b, Angle t) {
     send(pkt);
 }
 
-void SmartServoBus::update(uint32_t diff_ms) {
-    int i = 0;
-    m_mutex.lock();
+void SmartServoBus::regulatorRoutineTrampoline(void *cookie) {
+    ((SmartServoBus*)cookie)->regulatorRoutine();
+}
 
-#if 0
-    if(uart_get_buffered_data_len(m_bus->_uart, &avail) == ESP_OK && avail >= 5) {
-        uart_read_bytes( m_bus->_uart, buff, 5, 0);
-        lw::Packet pkt(buff, 5);
-        uart_read_bytes( m_bus->_uart, buff, pkt.size() - 2, 100);
-        pkt._data.insert(pkt._data.end(), buff, buff + (pkt.size() - 2));
-        pkt.dump();
-    }
-#elif 0
-    while(uart_get_buffered_data_len(m_bus->_uart, &avail) == ESP_OK && avail > 0) {
-        uart_read_bytes( m_bus->_uart, buff, 1, 0);
-        printf("%02x ", (int)buff[0]);
-    }
-#endif
-
-    for(auto &s : m_servos) {
-        i++;
-        if(s.current == s.target)
-            continue;
-
-        float speed = s.speed_target;
-        if(s.speed_coef < 1.f) {
-            s.speed_coef = std::min(1.f, s.speed_coef + s.speed_raise);
-            speed *= (s.speed_coef * s.speed_coef);
-        }
-
-        int32_t dist = abs(int32_t(s.target) - int32_t(s.current));
-        dist = std::max(1, std::min(dist, int32_t(speed * diff_ms)));
-        if(dist > 0) {
-            if (s.target < s.current) {
-                s.current -= dist;
-            } else {
-                s.current += dist;
+void SmartServoBus::regulatorRoutine() {
+    struct rx_response resp = { 0 };
+    auto queue = xQueueCreate(1, sizeof(struct rx_response));
+    while(true) {
+        const uint32_t diff_ms = 50;
+        const size_t servos = m_servos.size();
+        for(size_t i = 0; i < servos; ++i) {
+            m_mutex.lock();
+            auto& s = m_servos[i];
+            if(s.current == s.target) {
+                vTaskDelay(MS_TO_TICKS(15));
+                m_mutex.unlock();
+                continue;
             }
-        }
 
-        if(dist <= 0 || s.current == s.target) {
-            s.current = s.target;
-            s.speed_coef = 0.f;
-        }
+            float speed = s.speed_target;
+            if(s.speed_coef < 1.f) {
+                s.speed_coef = std::min(1.f, s.speed_coef + s.speed_raise);
+                speed *= (s.speed_coef * s.speed_coef);
+            }
 
-        //printf("%d %d %f %f %f %u\n", dist, s.current, speed, s.speed_target, s.speed_coef, diff_ms);
-        auto pkt = s.servo.move(Angle::deg(float(s.current)/100.f), std::chrono::milliseconds(diff_ms));
-        send(pkt);
+            int32_t dist = abs(int32_t(s.target) - int32_t(s.current));
+            dist = std::max(1, std::min(dist, int32_t(speed * diff_ms)));
+            if(dist > 0) {
+                if (s.target < s.current) {
+                    s.current -= dist;
+                } else {
+                    s.current += dist;
+                }
+            }
+
+            if(dist <= 0 || s.current == s.target) {
+                s.current = s.target;
+                s.speed_coef = 0.f;
+            }
+
+            auto pkt = s.servo.move(Angle::deg(float(s.current)/100.f), std::chrono::milliseconds(diff_ms));
+            m_mutex.unlock();
+
+            send(pkt, queue);
+            xQueueReceive(queue, &resp, portMAX_DELAY);
+        }
     }
-    m_mutex.unlock();
+}
+
+void SmartServoBus::update(uint32_t diff_ms) {
+
 }
 
 float SmartServoBus::pos(uint8_t id) {
@@ -118,7 +123,6 @@ float SmartServoBus::pos(uint8_t id) {
     vQueueDelete(queue);
 
     if(resp.size != 0x08) {
-        printf("Servo %u\n", resp.size);
         return nanf("");
     }
 
@@ -160,33 +164,45 @@ void SmartServoBus::uartRoutine() {
 
     rbu::uart_set_half_duplex_pin(m_uart, m_uart_pin);
 
+    gpio_set_pull_mode(GPIO_NUM_14, (gpio_pull_mode_t)GPIO_PULLUP_ONLY);
+    gpio_matrix_in(GPIO_NUM_14, U1RXD_IN_IDX, 0);
+    gpio_set_direction(GPIO_NUM_14, (gpio_mode_t)GPIO_MODE_INPUT);
+
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = 1 << GPIO_NUM_4;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+
+    gpio_set_level(GPIO_NUM_4, 0);
+
     struct tx_request req;
     struct rx_response resp;
-    auto ticks_after_write = xTaskGetTickCount();
+    auto tm_last = xTaskGetTickCount();
+    constexpr auto min_delay = MS_TO_TICKS(15);
     while(true) {
         if(xQueueReceive(m_uart_queue, &req, portMAX_DELAY) != pdTRUE)
             continue;
 
-        if(req.expect_response) {
-            const auto diff = xTaskGetTickCount() - ticks_after_write;
-            const auto delay = 50 / portTICK_PERIOD_MS;
-            if(diff < delay)
-                vTaskDelay(delay - diff);
+        const auto diff = xTaskGetTickCount() - tm_last;
+        if(diff < min_delay) {
+            vTaskDelay(min_delay - diff);
         }
 
         uartSwitchToTx();
-        //rbu::uart_write_bytes(m_uart, req.data, req.size);
+        gpio_set_level(GPIO_NUM_4, 1);
         rbu::uart_tx_chars(m_uart, req.data, req.size);
+        tm_last = xTaskGetTickCount();
         req.size = uartReceive((uint8_t*)req.data, sizeof(req.data));
 
-        ticks_after_write = xTaskGetTickCount();
-
         //lw::Packet pkt((uint8_t*)req.data, req.size);
-       // pkt.dump();
+        //pkt.dump();
         if(req.size != 0 && req.expect_response) {
             resp.size = uartReceive(resp.data, sizeof(resp.data));
-          // lw::Packet pkt(resp.data, resp.size);
-           // pkt.dump();
+            //lw::Packet pkt(resp.data, resp.size);
+            //pkt.dump();
         } else {
             resp.size = 0;
         }
@@ -199,8 +215,8 @@ void SmartServoBus::uartRoutine() {
 
 size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
     size_t bufsize = 0;
-    const TickType_t wait_period = 10 / portTICK_PERIOD_MS;
-    const TickType_t timeout = 300 / portTICK_PERIOD_MS;
+    const TickType_t wait_period = MS_TO_TICKS(4);
+    constexpr TickType_t timeout = MS_TO_TICKS(20);
 
     while(true) {
         size_t avail = 0;
@@ -224,25 +240,27 @@ size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
         if(need + oldsize > bufcap) {
             printf("Invalid servo packet size received: %d, aborting.\n", (int)buff[3]);
             abort();
+            return 0;
         }
 
         TickType_t waiting = 0;
         while(rbu::uart_get_buffered_data_len(m_uart, &avail) != ESP_OK || avail < need) {
+            if(waiting >= timeout)
+                return 0;
             vTaskDelay(wait_period);
             waiting += wait_period;
             //printf("%u %u %u\n", oldsize, need, avail);
-            //if(waiting >= timeout)
-            //    return 0;
         }
 
         int res = rbu::uart_read_bytes(m_uart, buff + oldsize, need, 0);
         if(res < 0 || ((size_t)res) != need) {
             printf("Invalid servo packet read: %d, aborting.\n", res);
             abort();
+            return 0;
         }
         bufsize += need;
 
-        //printf("%u %u %u %X\n", oldsize, need, avail, (int)buff[oldsize]);
+       // printf("%u %u %u %X\n", oldsize, need, avail, (int)buff[oldsize]);
 
         if(oldsize < 2 && buff[oldsize] != 0x55)
             bufsize = 0;

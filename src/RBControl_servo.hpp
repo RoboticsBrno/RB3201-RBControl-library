@@ -29,6 +29,8 @@ private:
     void install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin);
     void update(uint32_t diff_ms);
 
+    static void regulatorRoutineTrampoline(void *cookie);
+    void regulatorRoutine();
     static void uartRoutineTrampoline(void *cookie);
     void uartRoutine();
     size_t uartReceive(uint8_t *buff, size_t bufcap);

@@ -44,7 +44,7 @@ static const char* UART_TAG = "uart";
         return (ret_val); \
     }
 
-#define UART_EMPTY_THRESH_DEFAULT  (10)
+#define UART_EMPTY_THRESH_DEFAULT  (2)
 #define UART_FULL_THRESH_DEFAULT  (120)
 #define UART_TOUT_THRESH_DEFAULT   (10)
 #define UART_CLKDIV_FRAG_BIT_WIDTH  (3)
@@ -116,6 +116,7 @@ typedef struct {
     uart_select_notif_callback_t uart_select_notif_callback; /*!< Notification about select() events */
 
     gpio_num_t half_duplex_pin;
+    uint16_t pintoggle;
 } uart_obj_t;
 
 static uart_obj_t *p_uart_obj[UART_NUM_MAX] = {0};
@@ -300,7 +301,7 @@ esp_err_t uart_get_hw_flow_ctrl(uart_port_t uart_num, uart_hw_flowcontrol_t* flo
     return ESP_OK;
 }
 
-static esp_err_t uart_reset_rx_fifo(uart_port_t uart_num)
+static esp_err_t IRAM_ATTR uart_reset_rx_fifo(uart_port_t uart_num)
 {
     UART_CHECK((uart_num < UART_NUM_MAX), "uart_num error", ESP_FAIL);
     //Due to hardware issue, we can not use fifo_rst to reset uart fifo.
@@ -313,7 +314,7 @@ static esp_err_t uart_reset_rx_fifo(uart_port_t uart_num)
     return ESP_OK;
 }
 
-esp_err_t uart_clear_intr_status(uart_port_t uart_num, uint32_t clr_mask)
+esp_err_t IRAM_ATTR uart_clear_intr_status(uart_port_t uart_num, uint32_t clr_mask)
 {
     UART_CHECK((uart_num < UART_NUM_MAX), "uart_num error", ESP_FAIL);
     //intr_clr register is write-only
@@ -340,14 +341,14 @@ esp_err_t uart_disable_intr_mask(uart_port_t uart_num, uint32_t disable_mask)
     return ESP_OK;
 }
 
-static void uart_disable_intr_mask_from_isr(uart_port_t uart_num, uint32_t disable_mask)
+static void IRAM_ATTR uart_disable_intr_mask_from_isr(uart_port_t uart_num, uint32_t disable_mask)
 {
     UART_ENTER_CRITICAL_ISR(&uart_spinlock[uart_num]);
     CLEAR_PERI_REG_MASK(UART_INT_ENA_REG(uart_num), disable_mask);
     UART_EXIT_CRITICAL_ISR(&uart_spinlock[uart_num]);
 }
 
-static void uart_enable_intr_mask_from_isr(uart_port_t uart_num, uint32_t enable_mask)
+static void IRAM_ATTR uart_enable_intr_mask_from_isr(uart_port_t uart_num, uint32_t enable_mask)
 {
     UART_ENTER_CRITICAL_ISR(&uart_spinlock[uart_num]);
     SET_PERI_REG_MASK(UART_INT_CLR_REG(uart_num), enable_mask);
@@ -370,7 +371,7 @@ static esp_err_t uart_pattern_link_free(uart_port_t uart_num)
     return ESP_OK;
 }
 
-static esp_err_t uart_pattern_enqueue(uart_port_t uart_num, int pos)
+static esp_err_t IRAM_ATTR uart_pattern_enqueue(uart_port_t uart_num, int pos)
 {
     UART_CHECK((p_uart_obj[uart_num]), "uart driver error", ESP_FAIL);
     esp_err_t ret = ESP_OK;
@@ -736,7 +737,7 @@ static int uart_find_pattern_from_last(uint8_t* buf, int length, uint8_t pat_chr
 }
 
 //internal isr handler for default driver code.
-static void uart_rx_intr_handler_default(void *param)
+static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
 {
     uart_obj_t *p_uart = (uart_obj_t*) param;
     uint8_t uart_num = p_uart->uart_num;
@@ -744,15 +745,42 @@ static void uart_rx_intr_handler_default(void *param)
     int rx_fifo_len = uart_reg->status.rxfifo_cnt;
     uint8_t buf_idx = 0;
     uint32_t uart_intr_status = UART[uart_num]->int_st.val;
+
     uart_event_t uart_event;
     portBASE_TYPE HPTaskAwoken = 0;
     static uint8_t pat_flg = 0;
     while(uart_intr_status != 0x0) {
         buf_idx = 0;
         uart_event.type = UART_EVENT_MAX;
-        if(uart_intr_status & UART_TXFIFO_EMPTY_INT_ST_M) {
+        if(uart_intr_status & UART_TX_DONE_INT_ST_M) {
+            if(p_uart->half_duplex_pin != 0) {
+                //PIN_INPUT_ENABLE(IO_MUX_GPIO14_REG);
+                GPIO. enable_w1tc = (1 << p_uart->half_duplex_pin);
+                REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (p_uart->half_duplex_pin * 4), SIG_GPIO_OUT_IDX);
+                GPIO.out_w1tc = (1 << GPIO_NUM_4);
+            }
+
+            rbu::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
+            rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_TX_DONE_INT_CLR_M);
+            /*
+            // If RS485 half duplex mode is enable then reset FIFO and
+            // reset RTS pin to start receiver driver
+            if (UART_IS_MODE_SET(uart_num, UART_MODE_RS485_HALF_DUPLEX)) {
+                UART_ENTER_CRITICAL_ISR(&uart_spinlock[uart_num]);
+                rbu::uart_reset_rx_fifo((uart_port_t)uart_num); // Allows to avoid hardware issue with the RXFIFO reset
+                uart_reg->conf0.sw_rts = 1;
+                UART_EXIT_CRITICAL_ISR(&uart_spinlock[uart_num]);
+            }
+
+            xSemaphoreGiveFromISR(p_uart_obj[uart_num]->tx_done_sem, &HPTaskAwoken);
+            if (HPTaskAwoken == pdTRUE) {
+                portYIELD_FROM_ISR();
+            }*/
+        }
+        else if(uart_intr_status & UART_TXFIFO_EMPTY_INT_ST_M) {
             rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_CLR_M);
             rbu::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_ENA_M);
+
             if(p_uart->tx_waiting_brk) {
                 continue;
             }
@@ -1009,33 +1037,6 @@ static void uart_rx_intr_handler_default(void *param)
             p_uart_obj[uart_num]->coll_det_flg = true;
             UART_EXIT_CRITICAL_ISR(&uart_spinlock[uart_num]);
             uart_event.type = UART_EVENT_MAX;
-        } else if(uart_intr_status & UART_TX_DONE_INT_ST_M) {
-            //if(p_uart_obj[uart_num]->half_duplex_pin != 0) {
-                //rbu::uart_set_pin((uart_port_t)uart_num, UART_PIN_NO_CHANGE, GPIO_NUM_14,
-                //p_uart_obj[uart_num]->half_duplex_pin,
-                 //   UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-            //}
-
-            //gpio_set_level(GPIO_NUM_14, 0);
-            gpio_set_pull_mode(GPIO_NUM_14, (gpio_pull_mode_t)GPIO_PULLUP_ONLY);
-            gpio_matrix_in(GPIO_NUM_14, U1RXD_IN_IDX, 0);
-            gpio_set_direction(GPIO_NUM_14, (gpio_mode_t)GPIO_MODE_INPUT);
-
-            rbu::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
-            rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_TX_DONE_INT_CLR_M);
-            // If RS485 half duplex mode is enable then reset FIFO and
-            // reset RTS pin to start receiver driver
-            if (UART_IS_MODE_SET(uart_num, UART_MODE_RS485_HALF_DUPLEX)) {
-                UART_ENTER_CRITICAL_ISR(&uart_spinlock[uart_num]);
-                rbu::uart_reset_rx_fifo((uart_port_t)uart_num); // Allows to avoid hardware issue with the RXFIFO reset
-                uart_reg->conf0.sw_rts = 1;
-                UART_EXIT_CRITICAL_ISR(&uart_spinlock[uart_num]);
-            }
-
-            xSemaphoreGiveFromISR(p_uart_obj[uart_num]->tx_done_sem, &HPTaskAwoken);
-            if (HPTaskAwoken == pdTRUE) {
-                portYIELD_FROM_ISR();
-            }
         } else {
             uart_reg->int_clr.val = uart_intr_status; /*simply clear all other intr status*/
             uart_event.type = UART_EVENT_MAX;
@@ -1113,6 +1114,7 @@ static int uart_fill_fifo(uart_port_t uart_num, const char* buffer, uint32_t len
     for (i = 0; i < copy_cnt; i++) {
         WRITE_PERI_REG(UART_FIFO_AHB_REG(uart_num), buffer[i]);
     }
+
     return copy_cnt;
 }
 
@@ -1124,6 +1126,7 @@ int uart_tx_chars(uart_port_t uart_num, const char* buffer, uint32_t len)
     if(len == 0) {
         return 0;
     }
+
     xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (portTickType)portMAX_DELAY);
     int tx_len = uart_fill_fifo(uart_num, (const char*) buffer, len);
     xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
@@ -1345,6 +1348,7 @@ esp_err_t uart_flush(uart_port_t uart_num) {
     return rbu::uart_flush_input(uart_num);
 }
 
+
 esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_buffer_size, int queue_size, QueueHandle_t *uart_queue, int intr_alloc_flags)
 {
     esp_err_t r;
@@ -1404,7 +1408,10 @@ esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_b
         return ESP_FAIL;
     }
 
-    r=rbu::uart_isr_register(uart_num, rbu::uart_rx_intr_handler_default, p_uart_obj[uart_num], intr_alloc_flags, &p_uart_obj[uart_num]->intr_handle);
+    intr_alloc_flags |= ESP_INTR_FLAG_IRAM;
+
+    r=rbu::uart_isr_register(uart_num, rbu::uart_rx_intr_handler_default, p_uart_obj[uart_num],
+      intr_alloc_flags, &p_uart_obj[uart_num]->intr_handle);
     if (r!=ESP_OK) {
     rbu::uart_driver_delete(uart_num);
     return r;
