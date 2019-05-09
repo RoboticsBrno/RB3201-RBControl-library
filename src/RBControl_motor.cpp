@@ -27,14 +27,14 @@ bool Motor::direct_power(int8_t power) {
             return false;
         m_pwm0 = m_pwm1 = 0;
     } else if(power > 0) {
-        if(m_pwm1 == power)
+        if(m_pwm1 == pwm_val)
             return false;
         m_pwm0 = 0;
-        m_pwm1 = power;
+        m_pwm1 = pwm_val;
     } else {
-        if(m_pwm0 == -power)
+        if(m_pwm0 == -pwm_val)
             return false;
-        m_pwm0 = -power;
+        m_pwm0 = -pwm_val;
         m_pwm1 = 0;
     }
     return true;
