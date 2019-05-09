@@ -4,7 +4,7 @@
 #include <memory>
 #include <functional>
 
-#include "serialpcm.hpp"
+#include "RBControl_serialPWM.hpp"
 #include "RBControl_util.hpp"
 #include "RBControl_pinout.hpp"
 #include "RBControl_encoder.hpp"
@@ -51,15 +51,15 @@ public:
     Encoder *enc() { return encoder(); }
 
 private:
-    Motor(Manager& man, MotorId id, SerialPCM::value_type & pwm0, SerialPCM::value_type & pwm1);
+    Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::value_type & pwm1);
 
     bool direct_power(int8_t power);
     bool direct_pwmMaxPercent(int8_t percent);
 
     Manager& m_man;
 
-    SerialPCM::value_type & m_pwm0;
-    SerialPCM::value_type & m_pwm1;
+    SerialPWM::value_type & m_pwm0;
+    SerialPWM::value_type & m_pwm1;
     MotorId m_id;
 
     std::mutex m_mutex;

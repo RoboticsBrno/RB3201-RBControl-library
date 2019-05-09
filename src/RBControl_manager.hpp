@@ -131,7 +131,7 @@ private:
 
     struct timeval m_motors_last_set;
     std::vector<Motor*> m_motors;
-    SerialPCM m_motors_pwm;
+    SerialPWM m_motors_pwm;
 
     Adafruit_MCP23017 m_expander;
     rb::Piezo m_piezo;

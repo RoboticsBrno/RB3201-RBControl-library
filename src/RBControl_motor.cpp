@@ -7,7 +7,7 @@ namespace rb {
 #define PWM_MAX 255
 #define POWER_MAX 100
 
-Motor::Motor(Manager& man, MotorId id, SerialPCM::value_type & pwm0, SerialPCM::value_type & pwm1) :
+Motor::Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::value_type & pwm1) :
     m_man(man), m_pwm0(pwm0), m_pwm1(pwm1), m_id(id), m_pwm_max_percent(100),
     m_pwm_scale(static_cast<float>(PWM_MAX) / POWER_MAX)
 {
