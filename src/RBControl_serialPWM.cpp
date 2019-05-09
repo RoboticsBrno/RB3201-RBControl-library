@@ -82,9 +82,9 @@ SerialPWM::~SerialPWM() {
     for (int buffer = 0; buffer != sc_buffers; ++buffer) {
         heap_caps_free(m_buffer_descriptors[buffer]);
         m_buffer_descriptors[buffer] = nullptr;
-        for (int bit = 0; bit != sc_bit_depth; ++bit) {
-            heap_caps_free(m_buffer[buffer][bit]);
-            m_buffer[buffer][bit] = nullptr;
+        for (int i = 0; i != sc_resolution; ++i) {
+            heap_caps_free(m_buffer[buffer][i]);
+            m_buffer[buffer][i] = nullptr;
         }
     }
 }
