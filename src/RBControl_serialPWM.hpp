@@ -19,6 +19,7 @@ public:
               const int latch_pin,
               const int clock_pin,
               const int test_pin = -1,
+              const int frequency = 20000,
               const int i2s = 1);
 
     ~SerialPWM();
@@ -34,7 +35,7 @@ private:
     static volatile void* i2snum2struct(const int num);
 
     static constexpr int sc_buffers = 2;
-    static constexpr int sc_bit_depth = 8;
+    static constexpr int sc_bit_depth = 7;
     static constexpr int sc_resolution = (1<<sc_bit_depth) - 1;
     const int c_channels;
     const int c_bytes;

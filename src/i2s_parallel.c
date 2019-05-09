@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
-//#include <string.h>
+#include <assert.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -133,6 +133,26 @@ void i2s_parallel_setup(i2s_dev_t *dev, const i2s_parallel_config_t *cfg) {
     dma_reset(dev);
     fifo_reset(dev);
     
+    const float i2s_clk = 160e6;
+    float div = i2s_clk / cfg->clkspeed;
+    int M = div / (255 + 63); // max(N + b)
+    if (M < 2)
+        M = 2;
+    else
+        assert(M < 64);
+    div /= M;
+    int N = div < 256 ? div : 255;
+    int a = 63;
+    int b = 0;
+    for(; a != 0; --a) {
+        b = (div - N) * a;
+        if (b < 64)
+            break;
+        
+    }
+    assert(a > 0);
+    assert(b >= 0 && b < 64);
+
     //Enable LCD mode
     dev->conf2.val=0;
     dev->conf2.lcd_en=1;
@@ -141,13 +161,13 @@ void i2s_parallel_setup(i2s_dev_t *dev, const i2s_parallel_config_t *cfg) {
     dev->sample_rate_conf.rx_bits_mod=cfg->bits;
     dev->sample_rate_conf.tx_bits_mod=cfg->bits;
     dev->sample_rate_conf.rx_bck_div_num=2;
-    dev->sample_rate_conf.tx_bck_div_num=63; // M - max 63 - 5 bits
+    dev->sample_rate_conf.tx_bck_div_num=M;
     
     dev->clkm_conf.val=0;
     dev->clkm_conf.clka_en=0;
-    dev->clkm_conf.clkm_div_a=1; // A - max 63 - 5 bits
-    dev->clkm_conf.clkm_div_b=63; //B - max 63 - 5 bits
-    dev->clkm_conf.clkm_div_num=cfg->clkspeed; // N
+    dev->clkm_conf.clkm_div_a=a; // A - max 63 - 5 bits
+    dev->clkm_conf.clkm_div_b=b; //B - max 63 - 5 bits
+    dev->clkm_conf.clkm_div_num=N;
     
     dev->fifo_conf.val=0;
     dev->fifo_conf.rx_fifo_mod_force_en=1;

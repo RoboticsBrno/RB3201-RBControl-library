@@ -22,6 +22,7 @@ SerialPWM::SerialPWM(const int channels,
                      const int latch_pin,
                      const int clock_pin,
                      const int test_pin,
+                     const int frequency,
                      const int i2s )
       : c_channels (channels),
         c_bytes(((data_pins.size() + (test_pin == -1 ? 0 : 1))>>3) + 1),
@@ -68,7 +69,7 @@ SerialPWM::SerialPWM(const int channels,
     cfg.inv_wclk = false;
     cfg.gpio_bclk = clock_pin;
     cfg.inv_bclk = false;
-    cfg.clkspeed = 1;
+    cfg.clkspeed = frequency * sc_resolution * c_channels;
     cfg.bufa = m_buffer_descriptors[0];
     cfg.bufb = m_buffer_descriptors[1];
 
