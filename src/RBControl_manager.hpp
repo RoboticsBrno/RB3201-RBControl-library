@@ -165,6 +165,13 @@ public:
     MotorChangeBuilder& pwmMaxPercent(MotorId id, int8_t percent);
 
     /**
+     * \brief Stop motor.
+     * \param id of the motor (e.g. rb:MotorId::M1)
+     **/
+    MotorChangeBuilder& stop(MotorId id);
+
+
+    /**
      * \brief Finish the changes and submit the events.
      * \param toFront add this event to front of the event queue
      **/

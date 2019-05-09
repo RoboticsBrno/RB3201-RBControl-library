@@ -32,6 +32,11 @@ public:
     void pwmMaxPercent(int8_t percent);
 
     /**
+     * \brief Stop motor.
+     */
+    void stop();
+
+    /**
      * \brief Drive motor to set position (according absolute value). See {@link Encoder::driveToValue}. 
      */
     void driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
@@ -55,6 +60,7 @@ private:
 
     bool direct_power(int8_t power);
     bool direct_pwmMaxPercent(int8_t percent);
+    bool direct_stop(int8_t);
 
     Manager& m_man;
 

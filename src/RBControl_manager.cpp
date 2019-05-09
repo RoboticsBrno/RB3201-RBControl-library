@@ -235,6 +235,15 @@ MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(MotorId id, int8_t percent
     return *this;
 }
 
+MotorChangeBuilder& MotorChangeBuilder::stop(MotorId id) {
+    m_values->emplace_back(Manager::EventMotorsData{
+        .setter_func = &Motor::direct_stop,
+        .id = id,
+        .value = 0
+    });
+    return *this;
+}
+
 void MotorChangeBuilder::set(bool toFront) {
     const Manager::Event ev = {
         .type = Manager::EVENT_MOTORS,
