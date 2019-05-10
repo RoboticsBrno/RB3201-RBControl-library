@@ -11,6 +11,22 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+
+/*
+ * RBCONTROL CHANGES:
+ * We need half-duplex uart for the smart servo communication. This is not possible using the upstream
+ * uart driver, so we copied it from the upstream and made some changes:
+ *   * Added uart_set_half_duplex_pin to set-up the mode.
+ *   * Implemented the pin function changing on the "tx buffer empty" interrupt.
+ *     You have to use uart_tx_chars(), then read the stuff you sent from the rx buffer,
+ *     wait for response (if any), then you can send again.
+ *   * The interrupt handler is IRAM, otherwise it is too slow to change the pin
+ *     function.
+ *   * Standard uart functions may or may not be broken.
+ */
+
+
 #include <string.h>
 #include "esp_types.h"
 #include "esp_attr.h"
@@ -30,9 +46,10 @@
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "driver/uart_select.h"
-#include "uart.h"
+#include "half_duplex_uart.h"
 
-namespace rbu {
+namespace rb {
+namespace half_duplex {
 
 #define XOFF (char)0x13
 #define XON (char)0x11
@@ -44,7 +61,7 @@ static const char* UART_TAG = "uart";
         return (ret_val); \
     }
 
-#define UART_EMPTY_THRESH_DEFAULT  (2)
+#define UART_EMPTY_THRESH_DEFAULT  (10)
 #define UART_FULL_THRESH_DEFAULT  (120)
 #define UART_TOUT_THRESH_DEFAULT   (10)
 #define UART_CLKDIV_FRAG_BIT_WIDTH  (3)
@@ -116,7 +133,6 @@ typedef struct {
     uart_select_notif_callback_t uart_select_notif_callback; /*!< Notification about select() events */
 
     gpio_num_t half_duplex_pin;
-    uint16_t pintoggle;
 } uart_obj_t;
 
 static uart_obj_t *p_uart_obj[UART_NUM_MAX] = {0};
@@ -494,27 +510,27 @@ esp_err_t uart_enable_pattern_det_intr(uart_port_t uart_num, char pattern_chr, u
     UART[uart_num]->at_cmd_gaptout.rx_gap_tout = chr_tout;
     UART[uart_num]->at_cmd_postcnt.post_idle_num = post_idle;
     UART[uart_num]->at_cmd_precnt.pre_idle_num = pre_idle;
-    return rbu::uart_enable_intr_mask(uart_num, UART_AT_CMD_CHAR_DET_INT_ENA_M);
+    return half_duplex::uart_enable_intr_mask(uart_num, UART_AT_CMD_CHAR_DET_INT_ENA_M);
 }
 
 esp_err_t uart_disable_pattern_det_intr(uart_port_t uart_num)
 {
-    return rbu::uart_disable_intr_mask(uart_num, UART_AT_CMD_CHAR_DET_INT_ENA_M);
+    return half_duplex::uart_disable_intr_mask(uart_num, UART_AT_CMD_CHAR_DET_INT_ENA_M);
 }
 
 esp_err_t uart_enable_rx_intr(uart_port_t uart_num)
 {
-    return rbu::uart_enable_intr_mask(uart_num, UART_RXFIFO_FULL_INT_ENA|UART_RXFIFO_TOUT_INT_ENA);
+    return half_duplex::uart_enable_intr_mask(uart_num, UART_RXFIFO_FULL_INT_ENA|UART_RXFIFO_TOUT_INT_ENA);
 }
 
 esp_err_t uart_disable_rx_intr(uart_port_t uart_num)
 {
-    return rbu::uart_disable_intr_mask(uart_num, UART_RXFIFO_FULL_INT_ENA|UART_RXFIFO_TOUT_INT_ENA);
+    return half_duplex::uart_disable_intr_mask(uart_num, UART_RXFIFO_FULL_INT_ENA|UART_RXFIFO_TOUT_INT_ENA);
 }
 
 esp_err_t uart_disable_tx_intr(uart_port_t uart_num)
 {
-    return rbu::uart_disable_intr_mask(uart_num, UART_TXFIFO_EMPTY_INT_ENA);
+    return half_duplex::uart_disable_intr_mask(uart_num, UART_TXFIFO_EMPTY_INT_ENA);
 }
 
 esp_err_t uart_enable_tx_intr(uart_port_t uart_num, int enable, int thresh)
@@ -669,7 +685,7 @@ esp_err_t uart_param_config(uart_port_t uart_num, const uart_config_t *uart_conf
     } else if(uart_num == UART_NUM_2) {
         periph_module_enable(PERIPH_UART2_MODULE);
     }
-    r = rbu::uart_set_hw_flow_ctrl(uart_num, uart_config->flow_ctrl, uart_config->rx_flow_ctrl_thresh);
+    r = half_duplex::uart_set_hw_flow_ctrl(uart_num, uart_config->flow_ctrl, uart_config->rx_flow_ctrl_thresh);
     if (r != ESP_OK) return r;
 
     UART[uart_num]->conf0.val =
@@ -678,11 +694,11 @@ esp_err_t uart_param_config(uart_port_t uart_num, const uart_config_t *uart_conf
         | ((uart_config->flow_ctrl & UART_HW_FLOWCTRL_CTS) ? UART_TX_FLOW_EN : 0x0)
         | (uart_config->use_ref_tick ? 0 : UART_TICK_REF_ALWAYS_ON_M);
 
-    r = rbu::uart_set_baudrate(uart_num, uart_config->baud_rate);
+    r = half_duplex::uart_set_baudrate(uart_num, uart_config->baud_rate);
     if (r != ESP_OK) return r;
-    r = rbu::uart_set_tx_idle_num(uart_num, UART_TX_IDLE_NUM_DEFAULT);
+    r = half_duplex::uart_set_tx_idle_num(uart_num, UART_TX_IDLE_NUM_DEFAULT);
     if (r != ESP_OK) return r;
-    r = rbu::uart_set_stop_bits(uart_num, uart_config->stop_bits);
+    r = half_duplex::uart_set_stop_bits(uart_num, uart_config->stop_bits);
     //A hardware reset does not reset the fifo,
     //so we need to reset the fifo manually.
     uart_reset_rx_fifo(uart_num);
@@ -754,20 +770,18 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
         uart_event.type = UART_EVENT_MAX;
         if(uart_intr_status & UART_TX_DONE_INT_ST_M) {
             if(p_uart->half_duplex_pin != 0) {
-                //PIN_INPUT_ENABLE(IO_MUX_GPIO14_REG);
-                GPIO. enable_w1tc = (1 << p_uart->half_duplex_pin);
+                GPIO.enable_w1tc = (1 << p_uart->half_duplex_pin);
                 REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (p_uart->half_duplex_pin * 4), SIG_GPIO_OUT_IDX);
-                GPIO.out_w1tc = (1 << GPIO_NUM_4);
             }
 
-            rbu::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
-            rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_TX_DONE_INT_CLR_M);
+            half_duplex::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
+            half_duplex::uart_clear_intr_status((uart_port_t)uart_num, UART_TX_DONE_INT_CLR_M);
             /*
             // If RS485 half duplex mode is enable then reset FIFO and
             // reset RTS pin to start receiver driver
             if (UART_IS_MODE_SET(uart_num, UART_MODE_RS485_HALF_DUPLEX)) {
                 UART_ENTER_CRITICAL_ISR(&uart_spinlock[uart_num]);
-                rbu::uart_reset_rx_fifo((uart_port_t)uart_num); // Allows to avoid hardware issue with the RXFIFO reset
+                half_duplex::uart_reset_rx_fifo((uart_port_t)uart_num); // Allows to avoid hardware issue with the RXFIFO reset
                 uart_reg->conf0.sw_rts = 1;
                 UART_EXIT_CRITICAL_ISR(&uart_spinlock[uart_num]);
             }
@@ -778,8 +792,8 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
             }*/
         }
         else if(uart_intr_status & UART_TXFIFO_EMPTY_INT_ST_M) {
-            rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_CLR_M);
-            rbu::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_ENA_M);
+            half_duplex::uart_clear_intr_status((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_CLR_M);
+            half_duplex::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_ENA_M);
 
             if(p_uart->tx_waiting_brk) {
                 continue;
@@ -881,8 +895,8 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
                     }
                 }
                 if (en_tx_flg) {
-                    rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_CLR_M);
-                    rbu::uart_enable_intr_mask_from_isr((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_ENA_M);
+                    half_duplex::uart_clear_intr_status((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_CLR_M);
+                    half_duplex::uart_enable_intr_mask_from_isr((uart_port_t)uart_num, UART_TXFIFO_EMPTY_INT_ENA_M);
                 }
             }
         }
@@ -906,13 +920,13 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
 
                 //Get the buffer from the FIFO
                 if (uart_intr_status & UART_AT_CMD_CHAR_DET_INT_ST_M) {
-                    rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_AT_CMD_CHAR_DET_INT_CLR_M);
+                    half_duplex::uart_clear_intr_status((uart_port_t)uart_num, UART_AT_CMD_CHAR_DET_INT_CLR_M);
                     uart_event.type = UART_PATTERN_DET;
                     uart_event.size = rx_fifo_len;
                     pat_idx = uart_find_pattern_from_last(p_uart->rx_data_buf, rx_fifo_len - 1, pat_chr, pat_num);
                 } else {
                     //After Copying the Data From FIFO ,Clear intr_status
-                    rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_RXFIFO_TOUT_INT_CLR_M | UART_RXFIFO_FULL_INT_CLR_M);
+                    half_duplex::uart_clear_intr_status((uart_port_t)uart_num, UART_RXFIFO_TOUT_INT_CLR_M | UART_RXFIFO_FULL_INT_CLR_M);
                     uart_event.type = UART_DATA;
                     uart_event.size = rx_fifo_len;
                     UART_ENTER_CRITICAL_ISR(&uart_selectlock);
@@ -926,13 +940,13 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
                 //Mainly for applications that uses flow control or small ring buffer.
                 if(pdFALSE == xRingbufferSendFromISR(p_uart->rx_ring_buf, p_uart->rx_data_buf, p_uart->rx_stash_len, &HPTaskAwoken)) {
                     p_uart->rx_buffer_full_flg = true;
-                    rbu::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_RXFIFO_TOUT_INT_ENA_M | UART_RXFIFO_FULL_INT_ENA_M);
+                    half_duplex::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_RXFIFO_TOUT_INT_ENA_M | UART_RXFIFO_FULL_INT_ENA_M);
                     if (uart_event.type == UART_PATTERN_DET) {
                         if (rx_fifo_len < pat_num) {
                             //some of the characters are read out in last interrupt
-                            rbu::uart_pattern_enqueue((uart_port_t)uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
+                            half_duplex::uart_pattern_enqueue((uart_port_t)uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
                         } else {
-                            rbu::uart_pattern_enqueue((uart_port_t)uart_num,
+                            half_duplex::uart_pattern_enqueue((uart_port_t)uart_num,
                                     pat_idx <= -1 ?
                                             //can not find the pattern in buffer,
                                             p_uart->rx_buffered_len + p_uart->rx_stash_len :
@@ -949,10 +963,10 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
                     if (uart_intr_status & UART_AT_CMD_CHAR_DET_INT_ST_M) {
                         if (rx_fifo_len < pat_num) {
                             //some of the characters are read out in last interrupt
-                            rbu::uart_pattern_enqueue((uart_port_t)uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
+                            half_duplex::uart_pattern_enqueue((uart_port_t)uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
                         } else if(pat_idx >= 0) {
                             // find pattern in statsh buffer.
-                            rbu::uart_pattern_enqueue((uart_port_t)uart_num, p_uart->rx_buffered_len + pat_idx);
+                            half_duplex::uart_pattern_enqueue((uart_port_t)uart_num, p_uart->rx_buffered_len + pat_idx);
                         }
                     }
                     p_uart->rx_buffered_len += p_uart->rx_stash_len;
@@ -962,8 +976,8 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
                     portYIELD_FROM_ISR();
                 }
             } else {
-                rbu::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_RXFIFO_FULL_INT_ENA_M | UART_RXFIFO_TOUT_INT_ENA_M);
-                rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_RXFIFO_FULL_INT_CLR_M | UART_RXFIFO_TOUT_INT_CLR_M);
+                half_duplex::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_RXFIFO_FULL_INT_ENA_M | UART_RXFIFO_TOUT_INT_ENA_M);
+                half_duplex::uart_clear_intr_status((uart_port_t)uart_num, UART_RXFIFO_FULL_INT_CLR_M | UART_RXFIFO_TOUT_INT_CLR_M);
                 if(uart_intr_status & UART_AT_CMD_CHAR_DET_INT_ST_M) {
                     uart_reg->int_clr.at_cmd_char_det = 1;
                     uart_event.type = UART_PATTERN_DET;
@@ -974,7 +988,7 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
         } else if(uart_intr_status & UART_RXFIFO_OVF_INT_ST_M) {
             // When fifo overflows, we reset the fifo.
             UART_ENTER_CRITICAL_ISR(&uart_spinlock[uart_num]);
-            rbu::uart_reset_rx_fifo((uart_port_t)uart_num);
+            half_duplex::uart_reset_rx_fifo((uart_port_t)uart_num);
             uart_reg->int_clr.rxfifo_ovf = 1;
             UART_EXIT_CRITICAL_ISR(&uart_spinlock[uart_num]);
             uart_event.type = UART_FIFO_OVF;
@@ -1021,8 +1035,8 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
                 }
             }
         } else if(uart_intr_status & UART_TX_BRK_IDLE_DONE_INT_ST_M) {
-            rbu::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TX_BRK_IDLE_DONE_INT_ENA_M);
-            rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_TX_BRK_IDLE_DONE_INT_CLR_M);
+            half_duplex::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TX_BRK_IDLE_DONE_INT_ENA_M);
+            half_duplex::uart_clear_intr_status((uart_port_t)uart_num, UART_TX_BRK_IDLE_DONE_INT_CLR_M);
         } else if(uart_intr_status & UART_AT_CMD_CHAR_DET_INT_ST_M) {
             uart_reg->int_clr.at_cmd_char_det = 1;
             uart_event.type = UART_PATTERN_DET;
@@ -1030,9 +1044,9 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
                 || (uart_intr_status & UART_RS485_FRM_ERR_INT_ENA)
                 || (uart_intr_status & UART_RS485_PARITY_ERR_INT_ENA)) {
             // RS485 collision or frame error interrupt triggered
-            rbu::uart_clear_intr_status((uart_port_t)uart_num, UART_RS485_CLASH_INT_CLR_M);
+            half_duplex::uart_clear_intr_status((uart_port_t)uart_num, UART_RS485_CLASH_INT_CLR_M);
             UART_ENTER_CRITICAL_ISR(&uart_spinlock[uart_num]);
-            rbu::uart_reset_rx_fifo((uart_port_t)uart_num);
+            half_duplex::uart_reset_rx_fifo((uart_port_t)uart_num);
             // Set collision detection flag
             p_uart_obj[uart_num]->coll_det_flg = true;
             UART_EXIT_CRITICAL_ISR(&uart_spinlock[uart_num]);
@@ -1055,6 +1069,7 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
 }
 
 /**************************************************************/
+#if 0 // not implemented in half-duplex
 esp_err_t uart_wait_tx_done(uart_port_t uart_num, TickType_t ticks_to_wait)
 {
     UART_CHECK((uart_num < UART_NUM_MAX), "uart_num error", ESP_FAIL);
@@ -1073,17 +1088,18 @@ esp_err_t uart_wait_tx_done(uart_port_t uart_num, TickType_t ticks_to_wait)
         xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
         return ESP_OK;
     }
-    rbu::uart_enable_intr_mask((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
+    half_duplex::uart_enable_intr_mask((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
     //take 2nd tx_done_sem, wait given from ISR
     res = xSemaphoreTake(p_uart_obj[uart_num]->tx_done_sem, (portTickType)ticks_to_wait);
     if(res == pdFALSE) {
-        rbu::uart_disable_intr_mask((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
+        half_duplex::uart_disable_intr_mask((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
         xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
         return ESP_ERR_TIMEOUT;
     }
     xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
     return ESP_OK;
 }
+
 
 static esp_err_t uart_set_break(uart_port_t uart_num, int break_num)
 {
@@ -1095,6 +1111,7 @@ static esp_err_t uart_set_break(uart_port_t uart_num, int break_num)
     UART_EXIT_CRITICAL(&uart_spinlock[uart_num]);
     return ESP_OK;
 }
+#endif
 
 //Fill UART tx_fifo and return a number,
 //This function by itself is not thread-safe, always call from within a muxed section.
@@ -1109,8 +1126,11 @@ static int uart_fill_fifo(uart_port_t uart_num, const char* buffer, uint32_t len
         UART[uart_num]->conf0.sw_rts = 0;
         UART[uart_num]->int_ena.tx_done = 1;
     } else if(p_uart_obj[uart_num]->half_duplex_pin != 0) {
+        half_duplex::uart_set_pin(uart_num, p_uart_obj[uart_num]->half_duplex_pin,
+            UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
         UART[uart_num]->int_ena.tx_done = 1;
     }
+
     for (i = 0; i < copy_cnt; i++) {
         WRITE_PERI_REG(UART_FIFO_AHB_REG(uart_num), buffer[i]);
     }
@@ -1133,6 +1153,7 @@ int uart_tx_chars(uart_port_t uart_num, const char* buffer, uint32_t len)
     return tx_len;
 }
 
+#if 0 // not implemented in half-duplex
 static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool brk_en, int brk_len)
 {
     if(size == 0) {
@@ -1160,23 +1181,23 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
             xRingbufferSend(p_uart_obj[uart_num]->tx_ring_buf, (void*) (src + offset), send_size, portMAX_DELAY);
             size -= send_size;
             offset += send_size;
-            rbu::uart_enable_tx_intr((uart_port_t)uart_num, 1, UART_EMPTY_THRESH_DEFAULT);
+            half_duplex::uart_enable_tx_intr((uart_port_t)uart_num, 1, UART_EMPTY_THRESH_DEFAULT);
         }
     } else {
         while(size) {
             //semaphore for tx_fifo available
             if(pdTRUE == xSemaphoreTake(p_uart_obj[uart_num]->tx_fifo_sem, (portTickType)portMAX_DELAY)) {
-                size_t sent = rbu::uart_fill_fifo(uart_num, (char*) src, size);
+                size_t sent = half_duplex::uart_fill_fifo(uart_num, (char*) src, size);
                 if(sent < size) {
                     p_uart_obj[uart_num]->tx_waiting_fifo = true;
-                    rbu::uart_enable_tx_intr((uart_port_t)uart_num, 1, UART_EMPTY_THRESH_DEFAULT);
+                    half_duplex::uart_enable_tx_intr((uart_port_t)uart_num, 1, UART_EMPTY_THRESH_DEFAULT);
                 }
                 size -= sent;
                 src += sent;
             }
         }
         if(brk_en) {
-            rbu::uart_set_break(uart_num, brk_len);
+            half_duplex::uart_set_break(uart_num, brk_len);
             xSemaphoreTake(p_uart_obj[uart_num]->tx_brk_sem, (portTickType)portMAX_DELAY);
         }
         xSemaphoreGive(p_uart_obj[uart_num]->tx_fifo_sem);
@@ -1202,6 +1223,7 @@ int uart_write_bytes_with_break(uart_port_t uart_num, const char* src, size_t si
     UART_CHECK((brk_len > 0 && brk_len < 256), "break_num error", (-1));
     return uart_tx_all(uart_num, src, size, 1, brk_len);
 }
+#endif 
 
 static bool uart_check_buf_full(uart_port_t uart_num)
 {
@@ -1212,7 +1234,7 @@ static bool uart_check_buf_full(uart_port_t uart_num)
             p_uart_obj[uart_num]->rx_buffered_len += p_uart_obj[uart_num]->rx_stash_len;
             p_uart_obj[uart_num]->rx_buffer_full_flg = false;
             UART_EXIT_CRITICAL(&uart_spinlock[uart_num]);
-            rbu::uart_enable_rx_intr((uart_port_t)p_uart_obj[uart_num]->uart_num);
+            half_duplex::uart_enable_rx_intr((uart_port_t)p_uart_obj[uart_num]->uart_num);
             return true;
         }
     }
@@ -1296,7 +1318,7 @@ esp_err_t uart_flush_input(uart_port_t uart_num)
 
     //rx sem protect the ring buffer read related functions
     xSemaphoreTake(p_uart->rx_mux, (portTickType)portMAX_DELAY);
-    rbu::uart_disable_rx_intr((uart_port_t)p_uart_obj[uart_num]->uart_num);
+    half_duplex::uart_disable_rx_intr((uart_port_t)p_uart_obj[uart_num]->uart_num);
     while(true) {
         if(p_uart->rx_head_ptr) {
             vRingbufferReturnItem(p_uart->rx_ring_buf, p_uart->rx_head_ptr);
@@ -1322,7 +1344,7 @@ esp_err_t uart_flush_input(uart_port_t uart_num)
         }
         UART_ENTER_CRITICAL(&uart_spinlock[uart_num]);
         p_uart_obj[uart_num]->rx_buffered_len -= size;
-        rbu::uart_pattern_queue_update((uart_port_t)uart_num, size);
+        half_duplex::uart_pattern_queue_update((uart_port_t)uart_num, size);
         UART_EXIT_CRITICAL(&uart_spinlock[uart_num]);
         vRingbufferReturnItem(p_uart->rx_ring_buf, data);
         if(p_uart_obj[uart_num]->rx_buffer_full_flg) {
@@ -1338,14 +1360,14 @@ esp_err_t uart_flush_input(uart_port_t uart_num)
     p_uart->rx_ptr = NULL;
     p_uart->rx_cur_remain = 0;
     p_uart->rx_head_ptr = NULL;
-    rbu::uart_reset_rx_fifo((uart_port_t)uart_num);
-    rbu::uart_enable_rx_intr((uart_port_t)p_uart_obj[uart_num]->uart_num);
+    half_duplex::uart_reset_rx_fifo((uart_port_t)uart_num);
+    half_duplex::uart_enable_rx_intr((uart_port_t)p_uart_obj[uart_num]->uart_num);
     xSemaphoreGive(p_uart->rx_mux);
     return ESP_OK;
 }
 
 esp_err_t uart_flush(uart_port_t uart_num) {
-    return rbu::uart_flush_input(uart_num);
+    return half_duplex::uart_flush_input(uart_num);
 }
 
 
@@ -1380,7 +1402,7 @@ esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_b
         p_uart_obj[uart_num]->tx_brk_len = 0;
         p_uart_obj[uart_num]->tx_waiting_brk = 0;
         p_uart_obj[uart_num]->rx_buffered_len = 0;
-        rbu::uart_pattern_queue_reset(uart_num, UART_PATTERN_DET_QLEN_DEFAULT);
+        half_duplex::uart_pattern_queue_reset(uart_num, UART_PATTERN_DET_QLEN_DEFAULT);
 
         if(uart_queue) {
             p_uart_obj[uart_num]->xQueueUart = xQueueCreate(queue_size, sizeof(uart_event_t));
@@ -1410,10 +1432,10 @@ esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_b
 
     intr_alloc_flags |= ESP_INTR_FLAG_IRAM;
 
-    r=rbu::uart_isr_register(uart_num, rbu::uart_rx_intr_handler_default, p_uart_obj[uart_num],
+    r=half_duplex::uart_isr_register(uart_num, half_duplex::uart_rx_intr_handler_default, p_uart_obj[uart_num],
       intr_alloc_flags, &p_uart_obj[uart_num]->intr_handle);
     if (r!=ESP_OK) {
-    rbu::uart_driver_delete(uart_num);
+    half_duplex::uart_driver_delete(uart_num);
     return r;
     }
 
@@ -1428,11 +1450,11 @@ esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_b
         uart_intr.rx_timeout_thresh = UART_TOUT_THRESH_DEFAULT;
         uart_intr.txfifo_empty_intr_thresh = UART_EMPTY_THRESH_DEFAULT;
 
-    r=rbu::uart_intr_config(uart_num, &uart_intr);
+    r=half_duplex::uart_intr_config(uart_num, &uart_intr);
     if (r==ESP_OK)
         return r;
 
-    rbu::uart_driver_delete(uart_num);
+    half_duplex::uart_driver_delete(uart_num);
     return r;
 }
 
@@ -1445,9 +1467,9 @@ esp_err_t uart_driver_delete(uart_port_t uart_num)
         return ESP_OK;
     }
     esp_intr_free(p_uart_obj[uart_num]->intr_handle);
-    rbu::uart_disable_rx_intr(uart_num);
-    rbu::uart_disable_tx_intr(uart_num);
-    rbu::uart_pattern_link_free(uart_num);
+    half_duplex::uart_disable_rx_intr(uart_num);
+    half_duplex::uart_disable_tx_intr(uart_num);
+    half_duplex::uart_pattern_link_free(uart_num);
 
     if(p_uart_obj[uart_num]->tx_fifo_sem) {
         vSemaphoreDelete(p_uart_obj[uart_num]->tx_fifo_sem);
@@ -1536,7 +1558,7 @@ esp_err_t uart_set_mode(uart_port_t uart_num, uart_mode_t mode)
         UART[uart_num]->rs485_conf.rx_busy_tx_en = 1;
         UART[uart_num]->rs485_conf.en = 1;
         // Enable collision detection interrupts
-        rbu::uart_enable_intr_mask(uart_num, UART_RXFIFO_TOUT_INT_ENA
+        half_duplex::uart_enable_intr_mask(uart_num, UART_RXFIFO_TOUT_INT_ENA
                                         | UART_RXFIFO_FULL_INT_ENA
                                         | UART_RS485_CLASH_INT_ENA
                                         | UART_RS485_FRM_ERR_INT_ENA
@@ -1617,9 +1639,13 @@ esp_err_t uart_get_wakeup_threshold(uart_port_t uart_num, int* out_wakeup_thresh
 }
 
 void uart_set_half_duplex_pin(uart_port_t uart_num, gpio_num_t pin) {
+    half_duplex::uart_set_pin(uart_num, pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    half_duplex::uart_set_pin(uart_num, UART_PIN_NO_CHANGE, pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    
     UART_ENTER_CRITICAL(&uart_spinlock[uart_num]);
     p_uart_obj[uart_num]->half_duplex_pin = pin;
     UART_EXIT_CRITICAL(&uart_spinlock[uart_num]);
 }
 
-}; // namespace rbu
+}; // namespace half_duplex
+}; // namespace rb

@@ -6,8 +6,6 @@
 #include <soc/io_mux_reg.h>
 #include <chrono>
 
-#include "uart.h"
-
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -179,69 +177,48 @@ struct Packet {
     std::vector< uint8_t > _data;
 };
 
-struct Bus {
-    Bus() { }
-
-    struct Servo {
-    public:
-        // Move servo to given position (in degree) in given time (in milliseconds)
-        Packet move( Angle pos, std::chrono::milliseconds t ) {
-            int position = pos.deg();
-            int time = t.count();
-            if ( position < 0 || position > 240 )
-                throw std::runtime_error( "Position out of range" );
-            if ( time < 0 )
-                throw std::runtime_error( "Time is negative" );
-            if ( time > 30000 )
-                throw std::runtime_error( "Time is out of range" );
-            auto p = Packet::move( _id, fromDeg( position ), time );
-            return p;
-        }
-
-        Packet move( Angle pos ) {
-            int position = pos.deg();
-            if ( position < 0 || position > 240 )
-                throw std::runtime_error( "Position out of range" );
-            auto p = Packet::move( _id, fromDeg( position ), 0 );
-            return p;
-        }
-
-        // Set limits for the movement
-        Packet limit( Angle b, Angle t ) {
-            int bottom = b.deg();
-            int top = t.deg();
-            if ( bottom < 0 || bottom > 240 )
-                throw std::runtime_error( "Bottom limit out of range" );
-            if ( top < 0 || top > 240 )
-                throw std::runtime_error( "Top limit out of range" );
-            auto p = Packet::limitAngle( _id, fromDeg( bottom ), fromDeg( top ) );
-            return p;
-        }
-
-        Packet setId( Id newId ) {
-            if ( newId >= 254 )
-                throw std::runtime_error( "Invalid ID specified" );
-            auto p = Packet::setId( _id, newId );
-            return p;
-        }
-
-        friend class Bus;
-    private:
-        Servo( Id id, Bus& bus ) : _id( id ), _bus( bus ) {}
-
-        Id _id;
-        Bus& _bus;
-    };
-
-    Servo getServo( Id id ) {
-        return Servo( id, *this );
+class Servo {
+public:
+    // Move servo to given position (in degree) in given time (in milliseconds)
+    static Packet move(Id id, Angle pos, std::chrono::milliseconds t ) {
+        int position = pos.deg();
+        int time = t.count();
+        if ( position < 0 || position > 240 )
+            throw std::runtime_error( "Position out of range" );
+        if ( time < 0 )
+            throw std::runtime_error( "Time is negative" );
+        if ( time > 30000 )
+            throw std::runtime_error( "Time is out of range" );
+        auto p = Packet::move( id, fromDeg( position ), time );
+        return p;
     }
 
-    Servo allServos() {
-        return Servo( 254, *this );
+    static Packet move(Id id,  Angle pos ) {
+        int position = pos.deg();
+        if ( position < 0 || position > 240 )
+            throw std::runtime_error( "Position out of range" );
+        auto p = Packet::move( id, fromDeg( position ), 0 );
+        return p;
+    }
+
+    // Set limits for the movement
+    static Packet limit(Id id,  Angle b, Angle t ) {
+        int bottom = b.deg();
+        int top = t.deg();
+        if ( bottom < 0 || bottom > 240 )
+            throw std::runtime_error( "Bottom limit out of range" );
+        if ( top < 0 || top > 240 )
+            throw std::runtime_error( "Top limit out of range" );
+        auto p = Packet::limitAngle( id, fromDeg( bottom ), fromDeg( top ) );
+        return p;
+    }
+
+    static Packet setId( Id oldId, Id newId ) {
+        if ( newId >= 254 )
+            throw std::runtime_error( "Invalid ID specified" );
+        auto p = Packet::setId( oldId, newId );
+        return p;
     }
 };
-
-using Servo = Bus::Servo;
 
 } // namespace lw

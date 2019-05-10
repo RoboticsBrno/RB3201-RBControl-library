@@ -5,7 +5,6 @@
 
 #include <driver/gpio.h>
 #include <driver/pcnt.h>
-#include <driver/uart.h>
 
 #include "RBControl_util.hpp"
 #include "lx16a.hpp"
@@ -27,22 +26,20 @@ public:
 
 private:
     void install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin);
-    void update(uint32_t diff_ms);
 
     static void regulatorRoutineTrampoline(void *cookie);
     void regulatorRoutine();
+    bool regulateServo(QueueHandle_t responseQueue, size_t id, uint32_t timeSliceMs);
+
     static void uartRoutineTrampoline(void *cookie);
     void uartRoutine();
     size_t uartReceive(uint8_t *buff, size_t bufcap);
-    void uartSwitchToTx();
 
-    void send(const char *data, size_t size,
-        QueueHandle_t responseQueue = NULL, bool expect_response = false);
     void send(const lw::Packet& pkt,
-        QueueHandle_t responseQueue = NULL, bool expect_response = false);
+        QueueHandle_t responseQueue = NULL, bool expect_response = false, bool to_front = false);
 
     struct servo_info {
-        servo_info(const lw::Bus::Servo& s) : servo(s) {
+        servo_info() {
             current = 0xFFFF;
             target = 0xFFFF;
             speed_coef = 0.f;
@@ -55,7 +52,6 @@ private:
         float speed_coef;
         float speed_target;
         float speed_raise;
-        lw::Bus::Servo servo;
     };
 
     struct tx_request {
@@ -69,8 +65,6 @@ private:
         uint8_t data[16];
         uint8_t size;
     };
-
-    lw::Bus *m_bus;
 
     std::vector<servo_info> m_servos;
     std::mutex m_mutex;

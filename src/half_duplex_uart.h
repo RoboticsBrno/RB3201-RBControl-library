@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _RB_DRIVER_UART_H_
-#define _RB_DRIVER_UART_H_
+#ifndef _RB_HALF_DUPLEX_UART_H_
+#define _RB_HALF_DUPLEX_UART_H_
 
 
 #ifdef __cplusplus
@@ -39,7 +39,9 @@ extern "C" {
 }
 #endif
 
-namespace rbu {
+namespace rb {
+namespace half_duplex {
+
 /**
  * @brief Set UART data bits.
  *
@@ -728,6 +730,7 @@ esp_err_t uart_get_wakeup_threshold(uart_port_t uart_num, int* out_wakeup_thresh
 
 void uart_set_half_duplex_pin(uart_port_t uart_num, gpio_num_t pin);
 
-}; // namespace rbu
+}; // namespace half_duplex
+}; // namespace rb
 
-#endif /*_DRIVER_UART_H_*/
+#endif /*_RB_HALF_DUPLEX_UART_H_*/
