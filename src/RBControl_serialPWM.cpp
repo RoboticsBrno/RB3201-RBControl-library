@@ -34,7 +34,7 @@ SerialPWM::SerialPWM(const int channels,
 {
     const int buffer_size = c_channels * c_bytes;
     for (int buffer = 0; buffer != sc_buffers; ++buffer) {
-        m_buffer_descriptors[buffer] = static_cast<i2s_parallel_buffer_desc_t*>(heap_caps_malloc(sc_resolution * sizeof(i2s_parallel_buffer_desc_t), MALLOC_CAP_32BIT));
+        m_buffer_descriptors[buffer] = static_cast<i2s_parallel_buffer_desc_t*>(heap_caps_malloc((sc_resolution + 1) * sizeof(i2s_parallel_buffer_desc_t), MALLOC_CAP_32BIT)); // +1 for end mark
         for (int i = 0; i != sc_resolution; ++i) {
             uint8_t* p_buffer = static_cast<uint8_t*>(heap_caps_malloc(buffer_size, MALLOC_CAP_DMA));
             m_buffer_descriptors[buffer][i].memory = p_buffer;
@@ -43,7 +43,7 @@ SerialPWM::SerialPWM(const int channels,
             p_buffer[c_bytes - 1] = (1<<(data_pins.size()&7)); // latch pin
             m_buffer[buffer][i] = p_buffer;
         }
-        m_buffer_descriptors[buffer][sc_resolution-1].memory = nullptr;
+        m_buffer_descriptors[buffer][sc_resolution].memory = nullptr;
         if (test_pin != -1)
             for (int i = 0; i != buffer_size; ++i)
                 m_buffer[buffer][0][i] |= 1<<(data_pins.size() + 1);
