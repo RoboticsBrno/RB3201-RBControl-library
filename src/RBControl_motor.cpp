@@ -61,6 +61,10 @@ bool Motor::direct_stop(int8_t) {
     return true;
 }
 
+void Motor::stop() {
+    m_man.setMotors().stop(m_id).set();
+}
+
 void Motor::power(int8_t value) {
     m_man.setMotors().power(m_id, value).set();
 }
