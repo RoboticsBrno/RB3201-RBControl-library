@@ -20,31 +20,48 @@ namespace rb {
 
 class MotorChangeBuilder;
 
+//! This enum contains flags for the Manager's install() method.
+enum ManagerInstallFlags {
+    MAN_NONE                                = 0,
+    MAN_DISABLE_MOTOR_FAILSAFE              = (1 << 0), //!< Disables automatic motor failsafe, which stops the motors
+                                                        //!< after 300ms of no set motor power calls.
+    MAN_DISABLE_BATTERY_MANAGEMENT          = (1 << 1), //!< Disables the battery voltage auto-measurement and
+                                                        //!< auto-shutdown on low battery voltage.
+};
+
+inline ManagerInstallFlags operator|(ManagerInstallFlags a, ManagerInstallFlags b) {
+    return static_cast<ManagerInstallFlags>(static_cast<int>(a) | static_cast<int>(b));
+}
+
 /**
  * \brief The main library class for working with the RBControl board.
- *        Keep an instance of it through the whole program.
+ *        Call the install() method at the start of your program.
  */
 class Manager {
     friend class MotorChangeBuilder;
     friend class Encoder;
     friend class PcntInterruptHandler;
 public:
+    Manager(Manager const&) = delete;
+    void operator=(Manager const&) = delete;
 
     /**
-     * \brief Constructor of class Manager - main class for working with the RBControl board.
+     * \brief Get manager instance.
      *
-     * The `enable_motor_failsafe` parameter toggles the automatic failsafe, where the manager
-     * will automatically turn all motors off if it does not receive any motor set calls
-     * in 300ms. This is to stop the robot when the controller is disconnected.
-     *
-     * The `enable_battery` parameter enables battery voltage measurement and auto-shutdown
-     * when the voltage is low.
-     *
-     * \param enable_motor_failsafe `true` activate the automatic failsafe, `false` deactivate this system
-     * \param enable_battery `true` activates the battery voltage measurement and management.
+     * Always returns the same instance and is thread-safe. Don't forget to call install() to initialize
+     * the manager at the start of your program, when you first get the instance.
      */
-    Manager(bool enable_motor_failsafe = true, bool enable_battery = true);
-    ~Manager();
+    static Manager& get() {
+        static Manager instance;
+        return instance;
+    }
+
+    /**
+     * \brief Initialize the manager - must be called once at the start of the program.
+     *
+     * \param flags modify the manager's behavior or toggle some features. See @{ManagerInstallFlags} enum.
+     */
+    void install(ManagerInstallFlags flags = MAN_NONE);
 
     /**
      * \brief Initialize the UART servo bus for intelligent servos LX-16.
@@ -76,13 +93,15 @@ public:
     void schedule(uint32_t period_ms, std::function<bool()> callback);
 
 private:
+    Manager();
+    ~Manager();
+
     enum EventType {
         EVENT_MOTORS,
         EVENT_MOTORS_STOP_ALL,
         EVENT_ENCODER_EDGE,
         EVENT_ENCODER_PCNT,
     };
-
 
     struct EventMotorsData {
         bool (Motor::*setter_func)(int8_t);
