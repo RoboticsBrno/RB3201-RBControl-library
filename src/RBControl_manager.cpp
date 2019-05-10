@@ -12,7 +12,11 @@
 #define EVENT_LOOP_PERIOD (10 / portTICK_PERIOD_MS)
 #define MOTORS_FAILSAFE_PERIOD 300
 #define MOTORS_CHANNELS 16
+
+#ifndef MOTORS_PWM_FREQUENCY
 #define MOTORS_PWM_FREQUENCY 10000
+#endif
+
 static int diff_ms(timeval& t1, timeval& t2) {
     return (((t1.tv_sec - t2.tv_sec) * 1000000) +
             (t1.tv_usec - t2.tv_usec))/1000;
