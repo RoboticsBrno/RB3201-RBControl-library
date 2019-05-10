@@ -131,7 +131,7 @@ private:
 
     struct timeval m_motors_last_set;
     std::vector<Motor*> m_motors;
-    SerialPCM m_motors_pwm;
+    SerialPWM m_motors_pwm;
 
     Adafruit_MCP23017 m_expander;
     rb::Piezo m_piezo;
@@ -163,6 +163,13 @@ public:
      * \param percent of the maximal power of the motor <0 - 100>
      **/
     MotorChangeBuilder& pwmMaxPercent(MotorId id, int8_t percent);
+
+    /**
+     * \brief Stop motor.
+     * \param id of the motor (e.g. rb:MotorId::M1)
+     **/
+    MotorChangeBuilder& stop(MotorId id);
+
 
     /**
      * \brief Finish the changes and submit the events.

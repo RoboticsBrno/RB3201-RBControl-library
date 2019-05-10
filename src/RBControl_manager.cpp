@@ -12,6 +12,11 @@
 #define EVENT_LOOP_PERIOD (10 / portTICK_PERIOD_MS)
 #define MOTORS_FAILSAFE_PERIOD 300
 #define MOTORS_CHANNELS 16
+
+#ifndef MOTORS_PWM_FREQUENCY
+#define MOTORS_PWM_FREQUENCY 10000
+#endif
+
 static int diff_ms(timeval& t1, timeval& t2) {
     return (((t1.tv_sec - t2.tv_sec) * 1000000) +
             (t1.tv_usec - t2.tv_usec))/1000;
@@ -20,7 +25,7 @@ static int diff_ms(timeval& t1, timeval& t2) {
 namespace rb {
 
 Manager::Manager(bool enable_motor_failsafe, bool enable_battery) :
-    m_motors_pwm {MOTORS_CHANNELS, {SERMOT}, RCKMOT, SCKMOT},
+    m_motors_pwm {MOTORS_CHANNELS, {SERMOT}, RCKMOT, SCKMOT, -1, MOTORS_PWM_FREQUENCY},
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
     m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander, enable_battery), m_servos() {
     m_queue = xQueueCreate(32, sizeof(struct Event));
@@ -230,6 +235,15 @@ MotorChangeBuilder& MotorChangeBuilder::pwmMaxPercent(MotorId id, int8_t percent
         .setter_func = &Motor::direct_pwmMaxPercent,
         .id = id,
         .value = (int8_t)percent
+    });
+    return *this;
+}
+
+MotorChangeBuilder& MotorChangeBuilder::stop(MotorId id) {
+    m_values->emplace_back(Manager::EventMotorsData{
+        .setter_func = &Motor::direct_stop,
+        .id = id,
+        .value = 0
     });
     return *this;
 }

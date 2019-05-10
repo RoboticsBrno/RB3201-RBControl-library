@@ -4,10 +4,10 @@
 
 namespace rb {
 
-#define PWM_MAX 255
+#define PWM_MAX SerialPWM::resolution()
 #define POWER_MAX 100
 
-Motor::Motor(Manager& man, MotorId id, SerialPCM::value_type & pwm0, SerialPCM::value_type & pwm1) :
+Motor::Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::value_type & pwm1) :
     m_man(man), m_pwm0(pwm0), m_pwm1(pwm1), m_id(id), m_pwm_max_percent(100),
     m_pwm_scale(static_cast<float>(PWM_MAX) / POWER_MAX)
 {
@@ -15,27 +15,29 @@ Motor::Motor(Manager& man, MotorId id, SerialPCM::value_type & pwm0, SerialPCM::
     direct_power(m_power);
 }
 
+static int INV(int v) { return PWM_MAX - v; }
+
 bool Motor::direct_power(int8_t power) {
     m_power = power;
 
     int pwm_val = int(power) * m_pwm_scale;
     pwm_val = clamp(pwm_val, -PWM_MAX, PWM_MAX, "Motor",
                   "{}: Clamp the power({} <-> {})", static_cast<int>(m_id), -PWM_MAX, PWM_MAX);
-
+    
     if(power == 0) {
-        if(m_pwm0 == 0 && m_pwm1 == 0)
+        if(m_pwm0 == INV(0) && m_pwm1 == INV(0))
             return false;
-        m_pwm0 = m_pwm1 = 0;
+        m_pwm0 = m_pwm1 = INV(0);
     } else if(power > 0) {
-        if(m_pwm1 == power)
+        if(m_pwm1 == INV(pwm_val))
             return false;
-        m_pwm0 = 0;
-        m_pwm1 = power;
+        m_pwm0 = INV(0);
+        m_pwm1 = INV(pwm_val);
     } else {
-        if(m_pwm0 == -power)
+        if(m_pwm0 == INV(-pwm_val))
             return false;
-        m_pwm0 = -power;
-        m_pwm1 = 0;
+        m_pwm0 = INV(-pwm_val);
+        m_pwm1 = INV(0);
     }
     return true;
 }
@@ -50,6 +52,17 @@ bool Motor::direct_pwmMaxPercent(int8_t percent) {
     m_pwm_max_percent = new_max_percent;
     m_pwm_scale = (static_cast<float>(PWM_MAX * m_pwm_max_percent) / 100) / POWER_MAX;
     return true;
+}
+
+bool Motor::direct_stop(int8_t) {
+    if(m_pwm0 == INV(PWM_MAX) && m_pwm1 == INV(PWM_MAX))
+        return false;
+    m_pwm0 = m_pwm1 = INV(PWM_MAX);
+    return true;
+}
+
+void Motor::stop() {
+    m_man.setMotors().stop(m_id).set();
 }
 
 void Motor::power(int8_t value) {
