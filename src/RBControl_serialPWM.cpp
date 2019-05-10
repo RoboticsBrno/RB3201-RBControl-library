@@ -107,8 +107,4 @@ void SerialPWM::update() {
 
 int SerialPWM::resolution() { return sc_resolution; }
 
-//const int SerialPWM::sc_buffers = 2;
-//const int SerialPWM::sc_bit_depth = 8;
-//const int SerialPWM::sc_resolution = (1<<SerialPWM::sc_bit_depth) - 1;
-
 } // namespace rb
