@@ -10,13 +10,13 @@ namespace rb {
 
 class Angle {
 public:
-    typedef float Type;
+    typedef float _T;
     static const Angle Pi;
 
     Angle() : _rads(0) { }
 
-    static Angle rad( Type r ) { return Angle( r ); }
-    static Angle deg( Type d ) { return Angle( d * Type(M_PI/180) ); }
+    static Angle rad( _T r ) { return Angle( r ); }
+    static Angle deg( _T d ) { return Angle( d * _T(M_PI/180) ); }
     static Angle nan() { return Angle(nanf("")); }
 
     bool isNaN() const { return std::isnan(_rads); }
@@ -24,20 +24,20 @@ public:
     Angle& operator+=( Angle a ) { _rads += a._rads; return *this; }
     Angle& operator-=( Angle a ) { _rads -= a._rads; return *this; }
     Angle operator-() const { return Angle(-_rads); }
-    Angle& operator*=( Type c ) { _rads *= c; return *this; }
-    Angle& operator/=( Type c ) { _rads /= c; return *this; }
+    Angle& operator*=( _T c ) { _rads *= c; return *this; }
+    Angle& operator/=( _T c ) { _rads /= c; return *this; }
 
-    Type deg() const { return _rads * Type(180.0/M_PI); }
-    Type rad() const { return _rads; }
+    _T deg() const { return _rads * _T(180.0/M_PI); }
+    _T rad() const { return _rads; }
 private:
-    Type _rads;
-    Angle( Type r ): _rads( r ) {}
+    _T _rads;
+    Angle( _T r ): _rads( r ) {}
 };
 
 Angle operator+( Angle a, Angle b );
 Angle operator-( Angle a, Angle b );
-Angle operator*( Angle a, Angle::Type c );
-Angle operator/( Angle a, Angle::Type c );
+Angle operator*( Angle a, Angle::_T c );
+Angle operator/( Angle a, Angle::_T c );
 Angle operator"" _deg ( long double d );
 Angle operator"" _rad ( long double r );
 Angle operator"" _deg ( unsigned long long int d );
