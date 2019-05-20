@@ -14,24 +14,26 @@
 
 namespace rb {
 
-Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander, bool enable_battery) : m_piezo(piezo), m_leds(leds), m_expander(expander) {
+Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander) : m_piezo(piezo), m_leds(leds), m_expander(expander) {
     m_warningOn = false;
     m_undervoltedCounter = 0;
     m_coef = BATTERY_DEFAULT_COEF;
-
-    if(enable_battery) {
-        m_expander.digitalWrite(POWER_OFF_EXPANDER, 1);
-        m_expander.pinMode(POWER_OFF_EXPANDER, GPIO_MODE_OUTPUT);
-
-        adc1_config_width(ADC_WIDTH_12Bit);
-        adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_11);
-
-        updateVoltage();
-    }
 }
 
 Battery::~Battery() {
 
+}
+
+void Battery::install() {
+    adc1_config_width(ADC_WIDTH_12Bit);
+    adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_11);
+
+    updateVoltage();
+
+    Manager::get().schedule(500, [&]()->bool{
+        updateVoltage();
+        return true;
+    });
 }
 
 void Battery::setCoef(float coef) {
@@ -45,7 +47,7 @@ float Battery::coef() const {
 void Battery::shutdown() {
     ESP_LOGW(TAG, "Shutting down.");
 
-    m_expander.digitalWrite(POWER_OFF_EXPANDER, 0);
+    m_expander.digitalWrite(EXPANDER_BOARD_POWER_ON, 0);
     while(true) { } // wait for poweroff
 }
 
@@ -66,13 +68,6 @@ uint32_t Battery::pct() const {
     } else {
         return (float(mv - VOLTAGE_MIN) / (VOLTAGE_MAX - VOLTAGE_MIN)) * 100.f;
     }
-}
-
-void Battery::scheduleVoltageUpdating(Manager& man) {
-    man.schedule(500, [&]()->bool{
-        updateVoltage();
-        return true;
-    });
 }
 
 void Battery::setWarning(bool on) {

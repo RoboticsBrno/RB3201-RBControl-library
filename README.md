@@ -17,7 +17,9 @@ Arduino compatible. Available on the [PlatformIO](https://platformio.org/lib/sho
 #include "RBControl.hpp"
 
 extern "C" void app_main() {
-    rb::Manager man;    // Initialize the robot manager
+    // Initialize the robot manager
+    auto& man = rb::Manager::get();
+    man.install();
 
     // Set motor power limits
     man.setMotors()
