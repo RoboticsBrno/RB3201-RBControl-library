@@ -43,8 +43,8 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
         }
 
         if(val.isNaN()) {
-            ESP_LOGE(TAG, "failed to read position from servo %d, aborting.", i);
-            abort();
+            ESP_LOGE(TAG, "failed to read position from servo %d, it will not work!", i);
+            continue;
         }
 
         const float deg_val = 100 * val.deg();
@@ -58,21 +58,46 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
 
 void SmartServoBus::set(uint8_t id, Angle ang, float speed, float speed_raise) {
     speed = std::max(1.f, std::min(240.f, speed)) / 10.f;
-    uint16_t angle = std::max(0.f, std::min(360.f, (float)ang.deg())) * 100;
+    const uint16_t angle = std::max(0.f, std::min(360.f, (float)ang.deg())) * 100;
 
-    m_mutex.lock();
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     auto& si = m_servos[id];
-    if(si.current != angle) {
-        if(si.target == 0xFFFF) {
-            si.current = angle + 1;
-        } else if((si.current > si.target) != (si.current > angle)) {
-            si.speed_coef = 0.f;
-        }
-        si.target = angle;
-        si.speed_target = speed;
-        si.speed_raise = speed_raise;
+    if(!si.hasValidCurrent()) {
+        ESP_LOGE(TAG, "failed to get servo %d position, can't move it!", int(id));
+        return;
     }
-    m_mutex.unlock();
+
+    if(si.current == angle)
+        return;
+
+    if((si.current > si.target) != (si.current > angle)) {
+        si.speed_coef = 0.f;
+    }
+
+    si.target = angle;
+    si.speed_target = speed;
+    si.speed_raise = speed_raise;
+}
+
+Angle SmartServoBus::pos(uint8_t id) {
+    lw::Packet pkt(id+1, lw::Command::SERVO_POS_READ);
+
+    struct rx_response resp = { 0 };
+    auto queue = xQueueCreate(1, sizeof(struct rx_response));
+    send(pkt, queue, true);
+
+    xQueueReceive(queue, &resp, portMAX_DELAY);
+    vQueueDelete(queue);
+
+    if(resp.size != 0x08) {
+        return Angle::nan();
+    }
+
+    float val = (float)((resp.data[6] << 8) | resp.data[5]);
+    val = (val / 1000.f) * 240.f;
+
+    return Angle::deg(val);
 }
 
 void SmartServoBus::limit(uint8_t id,  Angle bottom, Angle top) {
@@ -180,26 +205,6 @@ bool SmartServoBus::regulateServo(QueueHandle_t responseQueue, size_t id, uint32
     return true;
 }
 
-Angle SmartServoBus::pos(uint8_t id) {
-    lw::Packet pkt(id+1, lw::Command::SERVO_POS_READ);
-
-    struct rx_response resp = { 0 };
-    auto queue = xQueueCreate(1, sizeof(struct rx_response));
-    send(pkt, queue, true);
-
-    xQueueReceive(queue, &resp, portMAX_DELAY);
-    vQueueDelete(queue);
-
-    if(resp.size != 0x08) {
-        return Angle::nan();
-    }
-
-    float val = (float)((resp.data[6] << 8) | resp.data[5]);
-    val = (val / 1000.f) * 240.f;
-
-    return Angle::deg(val);
-}
-
 void SmartServoBus::uartRoutineTrampoline(void *cookie) {
     ((SmartServoBus*)cookie)->uartRoutine();
 }
@@ -233,12 +238,8 @@ void SmartServoBus::uartRoutine() {
         tm_last = xTaskGetTickCount();
         req.size = uartReceive((uint8_t*)req.data, sizeof(req.data));
 
-        //lw::Packet pkt((uint8_t*)req.data, req.size);
-        //pkt.dump();
         if(req.size != 0 && req.expect_response) {
             resp.size = uartReceive(resp.data, sizeof(resp.data));
-            //lw::Packet pkt(resp.data, resp.size);
-            //pkt.dump();
         } else {
             resp.size = 0;
         }
@@ -287,7 +288,6 @@ size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
             }
             vTaskDelay(wait_period);
             waiting += wait_period;
-            //printf("%u %u %u\n", oldsize, need, avail);
         }
 
         int res = half_duplex::uart_read_bytes(m_uart, buff + oldsize, need, 0);
@@ -297,8 +297,6 @@ size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
             return 0;
         }
         bufsize += need;
-
-       // printf("%u %u %u %X\n", oldsize, need, avail, (int)buff[oldsize]);
 
         if(oldsize < 2 && buff[oldsize] != 0x55)
             bufsize = 0;

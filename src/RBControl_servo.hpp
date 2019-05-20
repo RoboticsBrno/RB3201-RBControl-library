@@ -51,6 +51,10 @@ private:
             auto_stop_counter = 0;
         }
 
+        bool hasValidCurrent() const {
+            return current != 0xFFFF;
+        }
+
         float speed_coef;
         float speed_target;
         float speed_raise;
