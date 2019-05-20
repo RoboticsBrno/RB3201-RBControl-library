@@ -10,7 +10,7 @@ namespace rb {
 
 class Angle {
 public:
-    typedef double Type;
+    typedef float Type;
     static const Angle Pi;
 
     Angle() : _rads(0) { }
