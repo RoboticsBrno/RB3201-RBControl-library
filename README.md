@@ -14,11 +14,12 @@ Arduino compatible. Available on the [PlatformIO](https://platformio.org/lib/sho
 #include <esp_system.h>
 #include <stdio.h>
 
-#include "RBControl_manager.hpp"
-#include "RBControl_battery.hpp"
+#include "RBControl.hpp"
 
 extern "C" void app_main() {
-    rb::Manager man;    // Initialize the robot manager
+    // Initialize the robot manager
+    auto& man = rb::Manager::get();
+    man.install();
 
     // Set motor power limits
     man.setMotors()
@@ -36,7 +37,7 @@ extern "C" void app_main() {
     const auto& bat = man.battery();
     while(true) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
-        print("Tick #%d, battery at %d%%, %dmv\n", i++, bat.pct(), bat.voltageMv());
+        printf("Tick #%d, battery at %d%%, %dmv\n", i++, bat.pct(), bat.voltageMv());
     }
 }
 

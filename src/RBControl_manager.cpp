@@ -24,10 +24,28 @@ static int diff_ms(timeval& t1, timeval& t2) {
 
 namespace rb {
 
-Manager::Manager(bool enable_motor_failsafe, bool enable_battery) :
+Manager::Manager() : m_queue(nullptr),
     m_motors_pwm {MOTORS_CHANNELS, {SERMOT}, RCKMOT, SCKMOT, -1, MOTORS_PWM_FREQUENCY},
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
-    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander, enable_battery), m_servos() {
+    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos() {
+
+}
+
+Manager::~Manager() {
+    if(m_queue) {
+        vQueueDelete(m_queue);
+    }
+
+    for(size_t i = 0; i < m_motors.size(); ++i)
+        delete m_motors[i];
+}
+
+void Manager::install(ManagerInstallFlags flags) {
+    if(m_queue) {
+        ESP_LOGE(TAG, "The manager has already been installed, please make sure to only call install() once!");
+        abort();
+    }
+
     m_queue = xQueueCreate(32, sizeof(struct Event));
 
     std::vector<int> pwm_index({12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 1, 2, 6, 7});
@@ -38,24 +56,17 @@ Manager::Manager(bool enable_motor_failsafe, bool enable_battery) :
     }
 
     m_motors_last_set.tv_sec = 0;
-    if(enable_motor_failsafe) {
+    if(!(flags & MAN_DISABLE_MOTOR_FAILSAFE)) {
         schedule(MOTORS_FAILSAFE_PERIOD, std::bind(&Manager::motorsFailSafe, this));
-    }
-
-    if(enable_battery) {
-        m_battery.scheduleVoltageUpdating(*this);
     }
 
     setupExpander();
 
+    if(!(flags & MAN_DISABLE_BATTERY_MANAGEMENT)) {
+        m_battery.install();
+    }
+
     xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 2, NULL);
-}
-
-Manager::~Manager() {
-    vQueueDelete(m_queue);
-
-    for(size_t i = 0; i < m_motors.size(); ++i)
-        delete m_motors[i];
 }
 
 void Manager::setupExpander() {
@@ -74,6 +85,10 @@ void Manager::setupExpander() {
     m_expander.pullUp(SW2, 1);
     m_expander.pinMode(SW3, GPIO_MODE_INPUT);
     m_expander.pullUp(SW3, 1);
+
+    // This pin keeps the board in the ON state.
+    m_expander.digitalWrite(EXPANDER_BOARD_POWER_ON, 1);
+    m_expander.pinMode(EXPANDER_BOARD_POWER_ON, GPIO_MODE_OUTPUT);
 }
 
 void Manager::queue(const Event *ev, bool toFront) {

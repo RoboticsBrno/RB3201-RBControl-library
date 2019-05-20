@@ -30,11 +30,11 @@ public:
     void shutdown(); //!< shuts the robot down
 
 private:
-    Battery(Piezo& piezo, Leds& leds, Adafruit_MCP23017& expander, bool enable_battery = true);
+    Battery(Piezo& piezo, Leds& leds, Adafruit_MCP23017& expander);
     ~Battery();
 
-    void scheduleVoltageUpdating(Manager& man);
-    bool updateVoltageTimer();
+    void install();
+
     void updateVoltage();
     void setWarning(bool on);
 
