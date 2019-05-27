@@ -234,6 +234,7 @@ void Encoder::onPcntIsr(uint32_t status) {
 }
 
 int32_t Encoder::value() {
+    std::lock_guard<std::mutex>guard(m_time_mutex);
     int16_t count = 0;
     pcnt_get_counter_value(PCNT_UNITS[static_cast<int>(m_id)], &count);
     return m_counter.load() + count;
