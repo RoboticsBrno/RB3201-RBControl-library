@@ -11,8 +11,7 @@ Motor::Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::
     m_man(man), m_pwm0(pwm0), m_pwm1(pwm1), m_id(id), m_pwm_max_percent(100),
     m_pwm_scale(static_cast<float>(PWM_MAX) / POWER_MAX)
 {
-    m_power = 0;
-    direct_power(m_power);
+    direct_power(0);
 }
 
 static int INV(int v) { return PWM_MAX - v; }
@@ -88,6 +87,15 @@ Encoder *Motor::encoder() {
         m_encoder->install();
     }
     return m_encoder.get();
+}
+
+Regulator *Motor::regulator() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(!m_regulator) {
+        m_regulator.reset(new Regulator(*this));
+        m_regulator->install();
+    }
+    return m_regulator.get();
 }
 
 }; // namespace rb 

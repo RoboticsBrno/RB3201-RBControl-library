@@ -40,6 +40,7 @@ inline ManagerInstallFlags operator|(ManagerInstallFlags a, ManagerInstallFlags 
 class Manager {
     friend class MotorChangeBuilder;
     friend class Encoder;
+    friend class Regulator;
     friend class PcntInterruptHandler;
 public:
     Manager(Manager const&) = delete;
@@ -80,7 +81,6 @@ public:
     Leds& leds() { return m_leds; } //!< Get the {@link Leds} helper
 
     Motor* motor(MotorId id) { return m_motors[static_cast<int>(id)]; }; //!< Get a motor instance
-    MotorChangeBuilder setMotors(); //!< Create motor power change builder: {@link MotorChangeBuilder}.
 
     /**
      * \brief Schedule callback to fire after period (in millisecond).
@@ -95,6 +95,8 @@ public:
 private:
     Manager();
     ~Manager();
+
+    MotorChangeBuilder setMotors(); //!< Create motor power change builder: {@link MotorChangeBuilder}.
 
     enum EventType {
         EVENT_MOTORS,

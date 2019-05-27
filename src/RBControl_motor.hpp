@@ -8,6 +8,7 @@
 #include "RBControl_util.hpp"
 #include "RBControl_pinout.hpp"
 #include "RBControl_encoder.hpp"
+#include "RBControl_regulator.hpp"
 
 namespace rb {
 
@@ -55,6 +56,16 @@ public:
      */
     Encoder *enc() { return encoder(); }
 
+        /**
+     * \brief Get the Regulator instance for this motor. See {@link Regulator}.
+     */
+    Regulator *regulator();
+
+    /**
+     * \brief Get the Regulator instance for this motor. Same as {@link reulator}.
+     */
+    Regulator *reg() { return regulator(); }
+
 private:
     Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::value_type & pwm1);
 
@@ -70,6 +81,7 @@ private:
 
     std::mutex m_mutex;
     std::unique_ptr<Encoder> m_encoder;
+    std::unique_ptr<Regulator> m_regulator;
     int8_t m_power;
 
     int8_t m_pwm_max_percent;
