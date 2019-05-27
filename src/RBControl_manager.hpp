@@ -40,7 +40,7 @@ inline ManagerInstallFlags operator|(ManagerInstallFlags a, ManagerInstallFlags 
 class Manager {
     friend class MotorChangeBuilder;
     friend class Encoder;
-    friend class Regulator;
+    friend class Motor;
     friend class PcntInterruptHandler;
 public:
     Manager(Manager const&) = delete;

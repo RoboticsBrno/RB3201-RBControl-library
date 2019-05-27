@@ -73,6 +73,8 @@ private:
     bool direct_pwmMaxPercent(int8_t percent);
     bool direct_stop(int8_t);
 
+    void init_encoder();
+
     Manager& m_man;
 
     SerialPWM::value_type & m_pwm0;
@@ -86,6 +88,9 @@ private:
 
     int8_t m_pwm_max_percent;
     float m_pwm_scale;
+
+    static bool s_reg_init;
+    static std::unique_ptr<MotorChangeBuilder> s_motorChangeBuilder;
 };
 
 } // namespace rb

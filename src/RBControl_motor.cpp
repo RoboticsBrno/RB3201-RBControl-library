@@ -2,6 +2,10 @@
 #include "RBControl_encoder.hpp"
 #include "RBControl_manager.hpp"
 
+#include <esp_log.h>
+
+#define TAG "RbMotor"
+
 namespace rb {
 
 #define PWM_MAX SerialPWM::resolution()
@@ -82,20 +86,53 @@ void Motor::drive(int32_t positionRelative, uint8_t power, std::function<void(En
 
 Encoder *Motor::encoder() {
     std::lock_guard<std::mutex> lock(m_mutex);
-    if(!m_encoder) {
-        m_encoder.reset(new Encoder(m_man, m_id));
-        m_encoder->install();
-    }
+    init_encoder();
     return m_encoder.get();
 }
 
 Regulator *Motor::regulator() {
     std::lock_guard<std::mutex> lock(m_mutex);
     if(!m_regulator) {
-        m_regulator.reset(new Regulator(*this));
-        m_regulator->install();
+        if (!s_reg_init) {
+            s_reg_init = true;
+            Regulator::add_preprocessor([&]() {
+                if (s_motorChangeBuilder)
+                    ESP_LOGW(TAG, "Motors regulator init called with instance of the MotorChangeBuilder!");
+                s_motorChangeBuilder.reset(new MotorChangeBuilder(m_man));
+            } );
+            Regulator::add_postprocessor([&]() {
+                if (!s_motorChangeBuilder) {
+                    ESP_LOGE(TAG, "Motors regulator setter called without valid instance of the MotorChangeBuilder!");
+                    return;
+                }
+                s_motorChangeBuilder->set();
+                s_motorChangeBuilder.reset();
+            } );
+        }
+        init_encoder();
+        m_regulator.reset(new Regulator());
+        m_regulator->install(
+            [&]() -> Regulator::Num { return encoder()->value(); },
+            [&](Regulator::Num pwr) {
+                if (!s_motorChangeBuilder) {
+                    ESP_LOGE(TAG, "Motor[%d] regulator setter called without valid instance of the MotorChangeBuilder!", static_cast<int>(m_id));
+                    return;
+                }
+                s_motorChangeBuilder->power(m_id, int8_t(pwr));
+            }
+        );
     }
     return m_regulator.get();
 }
+
+void Motor::init_encoder() {
+    if(!m_encoder) {
+        m_encoder.reset(new Encoder(m_man, m_id));
+        m_encoder->install();
+    }
+}
+
+bool Motor::s_reg_init = false;
+std::unique_ptr<MotorChangeBuilder> Motor::s_motorChangeBuilder;
 
 }; // namespace rb 
