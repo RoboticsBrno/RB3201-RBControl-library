@@ -11,6 +11,12 @@
 namespace rb {
 
 Piezo::Piezo() {
+}
+
+Piezo::~Piezo() {
+}
+
+void Piezo::install() {
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
@@ -40,13 +46,15 @@ Piezo::Piezo() {
     };
     ledc_channel_config(&ledc_channel);
 
+    m_installed = true;
+
     setTone(0);
 }
 
-Piezo::~Piezo() {
-}
-
 void Piezo::setTone(uint32_t freq) {
+    if(!m_installed)
+        return;
+
     if(freq != 0) {
         uint8_t bit_num = 10;
         uint64_t clk_freq = APB_CLK_FREQ;

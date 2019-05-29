@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 namespace rb {
 
 /**
@@ -14,6 +16,10 @@ public:
 private:
     Piezo();
     ~Piezo();
+
+    void install();
+
+    std::atomic<bool> m_installed;
 };
 
 };
