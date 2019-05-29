@@ -100,6 +100,14 @@ Angle SmartServoBus::pos(uint8_t id) {
     return Angle::deg(val);
 }
 
+Angle SmartServoBus::posOffline(uint8_t id) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto &s = m_servos[id];
+    if(s.current == 0xFFFF)
+        return Angle::nan();
+    return Angle::deg(Angle::_T(s.current)/100.f);
+}
+
 void SmartServoBus::limit(uint8_t id,  Angle bottom, Angle top) {
     auto pkt = lw::Servo::limit(id+1, bottom, top);
     send(pkt);
