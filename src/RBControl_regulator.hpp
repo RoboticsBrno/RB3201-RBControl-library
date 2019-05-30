@@ -1,7 +1,8 @@
 #pragma once
 
-#include <vector>
 #include <mutex>
+#include <vector>
+#include <string>
 #include <functional>
 
 namespace rb {
@@ -17,7 +18,7 @@ public:
     Regulator(Regulator const&) = delete;
     void operator=(Regulator const&) = delete;
 
-    Regulator();
+    Regulator(std::string&& name);
 
     ~Regulator();
     
@@ -25,13 +26,37 @@ public:
 
     void process();
 
+    void set(Num w);
+
+    void set_params(Num p, Num s, Num d);
+
+    void set_max_output(Num max);
+
     static void add_preprocessor(std::function<void()> fcn);
     static void add_postprocessor(std::function<void()> fcn);
 private:
+    bool clamp_output(Num& x);
+
+    std::mutex m_mutex;
+
+    const std::string m_name;
+
     InputReader m_reader;
     OutputWriter m_writer;
 
-    static void process_trampoline();
+    Num m_p;
+    Num m_s;
+    Num m_d;
+
+    int64_t m_t_last;
+
+    Num m_sum;
+    Num m_e_last;
+    Num m_w;
+    Num m_x_max;
+
+    static void process_trampoline(void*);
+    static void process_loop(void*);
 
     static std::mutex s_mutex;
     static std::vector<Regulator*> s_instances;

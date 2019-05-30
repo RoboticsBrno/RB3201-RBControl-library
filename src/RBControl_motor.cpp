@@ -1,3 +1,8 @@
+#ifndef _GLIBCXX_USE_C99
+#define _GLIBCXX_USE_C99
+#endif
+#include <string>
+
 #include "RBControl_motor.hpp"
 #include "RBControl_encoder.hpp"
 #include "RBControl_manager.hpp"
@@ -110,7 +115,8 @@ Regulator *Motor::regulator() {
             } );
         }
         init_encoder();
-        m_regulator.reset(new Regulator());
+        // (std::ostringstream("Motor[")<<static_cast<int>(m_id)<<"]").str() // My compiler does not know std::ostringstream::str()
+        m_regulator.reset(new Regulator("Motor[" + std::to_string(static_cast<int>(m_id)) + "]"));
         m_regulator->install(
             [&]() -> Regulator::Num { return encoder()->value(); },
             [&](Regulator::Num pwr) {
@@ -121,6 +127,8 @@ Regulator *Motor::regulator() {
                 s_motorChangeBuilder->power(m_id, int8_t(pwr));
             }
         );
+        m_regulator->set_max_output(PWM_MAX);
+        m_regulator->set_params(10, 1, 0);
     }
     return m_regulator.get();
 }
