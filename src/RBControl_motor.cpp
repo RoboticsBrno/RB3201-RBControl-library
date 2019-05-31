@@ -129,6 +129,8 @@ Regulator *Motor::regulator() {
         );
         m_regulator->set_max_output(PWM_MAX);
         m_regulator->set_params(1000, 100, 0);
+        m_regulator->set_zero_threshold(2/m_encoder->ticks_per_rev());
+        m_regulator->set_sum_zero_coef(1);
     }
     return m_regulator.get();
 }

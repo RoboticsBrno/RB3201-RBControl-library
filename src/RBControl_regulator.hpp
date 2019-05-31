@@ -31,6 +31,8 @@ public:
     void set_params(Num p, Num s, Num d);
 
     void set_max_output(Num max);
+    void set_zero_threshold(Num ths);
+    void set_sum_zero_coef(Num coef);
 
     static void add_preprocessor(std::function<void()> fcn);
     static void add_postprocessor(std::function<void()> fcn);
@@ -47,6 +49,9 @@ private:
     Num m_p;
     Num m_s;
     Num m_d;
+    
+    Num m_e_zero_ths;
+    Num m_s_zero_coef;
 
     int64_t m_t_last;
 
@@ -57,6 +62,7 @@ private:
 
     static void process_trampoline(void*);
     static void process_loop(void*);
+    static Num abs(Num n);
 
     static std::mutex s_mutex;
     static std::vector<Regulator*> s_instances;

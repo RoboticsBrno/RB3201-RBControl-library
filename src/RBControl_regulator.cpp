@@ -5,6 +5,8 @@
 
 #include <esp_log.h>
 
+#include <cmath>
+
 #define TAG "RbRegulator"
 
 #ifndef RBC_REGULATOR_PERIOD_MS
@@ -21,6 +23,8 @@ Regulator::Regulator(std::string&& name)
       m_p(0),
       m_s(0),
       m_d(0),
+      m_e_zero_ths(0),
+      m_s_zero_coef(0),
       m_t_last(0),
       m_sum(0),
       m_e_last(0),
@@ -65,7 +69,17 @@ void Regulator::process() {
     const int64_t t = esp_timer_get_time();
     const double dt = (t - m_t_last) / 1e6;
     m_mutex.lock();
-    const Num e = m_w - y;
+    Num e = m_w - y;
+    if (abs(e) <= m_e_zero_ths) {
+        e = 0;
+        if (m_sum != 0 && m_x_max != 0 && m_s_zero_coef != 0) {
+            const Num sum_dec = m_sum * m_s * m_s_zero_coef * dt / m_x_max;
+            if (abs(sum_dec) >= abs(m_sum))
+                m_sum = 0;
+            else
+                m_sum -= sum_dec;
+        }
+    }
     const Num sum = m_sum + e;
     const Num dif = (e - m_e_last) * dt;
     Num x = m_p * e + m_s * sum + m_d * dif;
@@ -93,14 +107,24 @@ void Regulator::set(Num w) {
 
 void Regulator::set_params(Num p, Num s, Num d) {
     std::lock_guard<std::mutex> guard(m_mutex);
-    m_p = p;
-    m_s = s;
-    m_d = d;
+    m_p = abs(p);
+    m_s = abs(s);
+    m_d = abs(d);
 }
 
 void Regulator::set_max_output(Num max) {
     std::lock_guard<std::mutex> guard(m_mutex);
-    m_x_max = max;
+    m_x_max = abs(max);
+}
+
+void Regulator::set_zero_threshold(Num ths) {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    m_e_zero_ths = abs(ths);
+}
+
+void Regulator::set_sum_zero_coef(Num coef) {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    m_s_zero_coef = abs(coef);
 }
 
 bool Regulator::clamp_output(Num& x) {
@@ -156,5 +180,7 @@ void Regulator::process_loop(void*) {
     s_mutex.unlock();
     vTaskDelete(nullptr);
 }
+
+Regulator::Num Regulator::abs(Num n) { return fabs(n); }
 
 } // namespace rb

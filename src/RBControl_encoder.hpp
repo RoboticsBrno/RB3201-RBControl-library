@@ -67,10 +67,14 @@ public:
     /**
      * \brief Set number of ticks per revolution.
      * \param ticks number of ticks per revolution
-     * \return The number of rotations from the first initialize 
-     *         of the encoder {@link Manager::initEncoder}
      */
     void ticks_per_rev(value_type ticks);
+
+    /**
+     * \brief Get number of ticks per revolution.
+     * \return The number of ticks per revolution
+     */
+    value_type ticks_per_rev();
 
 private:
     static void IRAM_ATTR isrGpio(void* cookie);

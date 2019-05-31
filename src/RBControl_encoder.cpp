@@ -294,4 +294,8 @@ void Encoder::ticks_per_rev(value_type ticks) {
     m_ticks_per_rev = ticks;
 }
 
+Encoder::value_type Encoder::ticks_per_rev() {
+    return m_ticks_per_rev;
+}
+
 };
