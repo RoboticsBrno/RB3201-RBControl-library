@@ -10,6 +10,7 @@ namespace rb {
 class Motor;
 
 class Regulator {
+    typedef std::recursive_mutex mutex_type;
 public:
     typedef float Num;
     typedef std::function<Num()> InputReader;
@@ -27,6 +28,7 @@ public:
     void process();
 
     void set(Num w);
+    Num get();
 
     void set_params(Num p, Num s, Num d);
 
@@ -34,12 +36,15 @@ public:
     void set_zero_threshold(Num ths);
     void set_sum_zero_coef(Num coef);
 
+    void disable();
+    bool is_enabled();
+
     static void add_preprocessor(std::function<void()> fcn);
     static void add_postprocessor(std::function<void()> fcn);
 private:
     bool clamp_output(Num& x);
 
-    std::mutex m_mutex;
+    mutex_type m_mutex;
 
     const std::string m_name;
 
@@ -64,7 +69,7 @@ private:
     static void process_loop(void*);
     static Num abs(Num n);
 
-    static std::mutex s_mutex;
+    static mutex_type s_mutex;
     static std::vector<Regulator*> s_instances;
     static std::vector<std::function<void()> > s_preprocessors;
     static std::vector<std::function<void()> > s_postprocessors;
