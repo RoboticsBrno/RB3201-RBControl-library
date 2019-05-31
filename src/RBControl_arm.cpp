@@ -84,6 +84,11 @@ BoneBuilder& BoneBuilder::calcServoAng(std::function<Angle(Angle abs, Angle rel)
     return *this;
 }
 
+BoneBuilder& BoneBuilder::calcAbsAng(std::function<Angle(Angle servoAng)> func) {
+    m_def->calcAbsAng = func;
+    return *this;
+}
+
 void Bone::updatePos(Bone *prev) {
     if(prev != nullptr) {
         absAngle = Arm::clamp(prev->absAngle + relAngle);
@@ -124,23 +129,32 @@ Arm::~Arm() {
 
 }
 
-void Arm::setServos() {
+void Arm::setServos(float speed) {
     auto& servos = Manager::get().servoBus();
     for(const auto& b : m_bones) {
-        servos.set(b.def.servo_id, b.absAngle);
+        servos.set(b.def.servo_id, b.servoAng(), speed);
     }
 }
 
 bool Arm::solve(Arm::CoordType target_x, Arm::CoordType target_y) {
     bool modified = false;
+    bool result = false;
     for(size_t i = 0; i < 10; ++i) {
-        if(solveIteration(target_x, target_y, modified))
-            return true;
+        if(solveIteration(target_x, target_y, modified)) {
+            result = true;
+            break;
+        }
         if(!modified)
             break;
     }
 
-    return false;
+    Bone *prev = nullptr;
+    for(size_t i = 0; i < m_bones.size(); ++i) {
+        m_bones[i].updatePos(prev);
+        prev = &m_bones[i];
+    }
+
+    return result;
 }
 
 bool Arm::solveIteration(Arm::CoordType target_x, Arm::CoordType target_y, bool& modified) {

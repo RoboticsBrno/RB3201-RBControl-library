@@ -27,6 +27,7 @@ public:
             rel_min = abs_min = base_rel_min = -Angle::Pi;
             rel_max = abs_max = base_rel_max = Angle::Pi;
             calcServoAng = [](Angle, Angle rel) -> Angle { return rel; };
+            calcAbsAng = [](Angle servoAng) -> Angle { return servoAng; };
         }
 
         uint8_t servo_id;
@@ -36,6 +37,7 @@ public:
         Angle base_rel_min, base_rel_max;
 
         std::function<Angle(Angle, Angle)> calcServoAng;
+        std::function<Angle(Angle)> calcAbsAng;
     };
 
     struct Definition {
@@ -61,7 +63,7 @@ public:
     ~Arm();
 
     bool solve(Arm::CoordType target_x, Arm::CoordType target_y);
-    void setServos();
+    void setServos(float speed = 180.f);
 
     const Definition& definition() const { return m_def; }
     const std::vector<Bone>& bones() const { return m_bones; }
@@ -110,6 +112,7 @@ public:
     BoneBuilder& absStops(Angle min, Angle max);
     BoneBuilder& baseRelStops(Angle min, Angle max);
     BoneBuilder& calcServoAng(std::function<Angle(Angle abs, Angle rel)> func);
+    BoneBuilder& calcAbsAng(std::function<Angle(Angle servoAng)> func);
 
 private:
     BoneBuilder(std::shared_ptr<Arm::BoneDefinition> def);

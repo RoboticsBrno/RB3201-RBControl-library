@@ -47,7 +47,7 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
             continue;
         }
 
-        const float deg_val = 100 * val.deg();
+        const uint16_t deg_val = 100 * val.deg();
 
         m_mutex.lock();
         m_servos[i].current = deg_val;
