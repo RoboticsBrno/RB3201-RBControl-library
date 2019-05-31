@@ -82,7 +82,11 @@ void IRAM_ATTR PcntInterruptHandler::isrHandler(void *cookie) {
     }
 }
 
-Encoder::Encoder(rb::Manager& man, rb::MotorId id) : m_manager(man), m_id(id) {
+Encoder::Encoder(rb::Manager& man, rb::MotorId id, float ticks_per_rev)
+    : m_manager(man),
+      m_id(id),
+      m_ticks_per_rev(ticks_per_rev)
+{
     if(m_id >= MotorId::MAX) {
         ESP_LOGE(TAG, "Invalid encoder index %d, using 0 instead.", (int)m_id);
         m_id = MotorId::M1;
@@ -203,10 +207,10 @@ void Encoder::onEdgeIsr(int64_t timestamp, uint8_t pinLevel) {
         }
         m_counter_time_us_last = timestamp;
 
-        ESP_LOGD(TAG, "Edge %d %d %d", (int)m_id, value(), (int)pinLevel);
+        ESP_LOGD(TAG, "Edge %d %d %d", (int)m_id, ticks(), (int)pinLevel);
 
         if(m_target_direction != 0) {
-            const auto val = value();
+            const auto val = ticks();
             if ((m_target_direction > 0 && val >= m_target) ||
                 (m_target_direction < 0 && val <= m_target)) {
                 m_manager.setMotors().power(m_id, 0).set(true);
@@ -233,11 +237,15 @@ void Encoder::onPcntIsr(uint32_t status) {
     m_time_mutex.unlock();
 }
 
-int32_t Encoder::value() {
+int32_t Encoder::ticks() {
     std::lock_guard<std::mutex>guard(m_time_mutex);
     int16_t count = 0;
     pcnt_get_counter_value(PCNT_UNITS[static_cast<int>(m_id)], &count);
     return m_counter.load() + count;
+}
+
+Encoder::value_type Encoder::value() {
+    return ticks() / m_ticks_per_rev;
 }
 
 float Encoder::speed() {
@@ -251,17 +259,19 @@ float Encoder::speed() {
     } else if(abs(diff) < MIN_ENGINE_PERIOD_US) {
         return 0.f;
     } else {
-        return 1000000.f / diff;
+        return (1000000.f / diff) / m_ticks_per_rev;
     }
 }
 
-void Encoder::driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback) {
+void Encoder::driveToValue(value_type positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback) {
     if(power == 0)
         return;
 
-    ESP_LOGD(TAG, "driveToValue %d %d %d %p", positionAbsolute, this->value(), power, callback);
+    int32_t ticks = positionAbsolute * m_ticks_per_rev;
 
-    const auto current = this->value();
+    ESP_LOGD(TAG, "driveToValue %d %d %d %p", ticks, this->ticks(), power, callback);
+
+    const auto current = this->ticks();
     if(current == positionAbsolute)
         return;
 
@@ -270,14 +280,18 @@ void Encoder::driveToValue(int32_t positionAbsolute, uint8_t power, std::functio
         m_target_callback(*this);
     }
     m_target_callback = callback;
-    m_target = positionAbsolute;
+    m_target = ticks;
     m_target_direction = (positionAbsolute > current ? 1 : -1);
     m_manager.motor(m_id)->power(static_cast<int8_t>(power) * m_target_direction);
     m_time_mutex.unlock();
 }
 
-void Encoder::drive(int32_t positionRelative, uint8_t power, std::function<void(Encoder&)> callback) {
+void Encoder::drive(value_type positionRelative, uint8_t power, std::function<void(Encoder&)> callback) {
     driveToValue(value() + positionRelative, power, callback);
+}
+
+void Encoder::ticks_per_rev(value_type ticks) {
+    m_ticks_per_rev = ticks;
 }
 
 };

@@ -18,7 +18,9 @@ class Encoder{
     friend class Manager;
     friend class Motor;
 public:
-    Encoder(Manager& man, MotorId id);
+    typedef float value_type;
+
+    Encoder(Manager& man, MotorId id, value_type ticks_per_rev = 1);
     ~Encoder();
 
     /**
@@ -30,7 +32,7 @@ public:
      * \param power maximal power of the motor when go to set position, allowed values: <0 - 100>
      * \param callback is a function which will be called after the motor arrives to set position `[optional]`
      */
-    void driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
+    void driveToValue(value_type positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
     /**
      * \brief Drive motor to set position (according relative value).
      * 
@@ -40,20 +42,36 @@ public:
      * \param power maximal power of the motor when go to set position, allowed values: <0 - 100>
      * \param callback is a function which will be call after the motor arrive to set position `[optional]`  
      */
-    void drive(int32_t positionRelative, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
+    void drive(value_type positionRelative, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
 
     /**
      * \brief Get number of edges from encoder.
      * \return The number of counted edges from the first initialize 
      *         of the encoder {@link Manager::initEncoder}
      */
-    int32_t value();
+    int32_t ticks();
+
+    /**
+     * \brief Get number of rotations from encoder.
+     * \return The number of rotations from the first initialize 
+     *         of the encoder {@link Manager::initEncoder}
+     */
+    value_type value();
 
     /**
      * \brief Get number of edges per one second.
      * \return The number of counted edges after one second.
      */
     float speed();
+
+    /**
+     * \brief Set number of ticks per revolution.
+     * \param ticks number of ticks per revolution
+     * \return The number of rotations from the first initialize 
+     *         of the encoder {@link Manager::initEncoder}
+     */
+    void ticks_per_rev(value_type ticks);
+
 private:
     static void IRAM_ATTR isrGpio(void* cookie);
 
@@ -66,6 +84,8 @@ private:
 
     Manager& m_manager;
     MotorId m_id;
+
+    value_type m_ticks_per_rev;
 
     std::atomic<int32_t> m_counter;
 

@@ -128,7 +128,7 @@ Regulator *Motor::regulator() {
             }
         );
         m_regulator->set_max_output(PWM_MAX);
-        m_regulator->set_params(10, 1, 0);
+        m_regulator->set_params(1000, 100, 0);
     }
     return m_regulator.get();
 }
