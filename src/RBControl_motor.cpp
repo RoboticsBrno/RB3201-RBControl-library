@@ -37,12 +37,12 @@ bool Motor::direct_power(int8_t power) {
             return false;
         m_pwm0 = m_pwm1 = INV(0);
     } else if(power > 0) {
-        if(m_pwm1 == INV(pwm_val))
+        if(m_pwm1 == INV(pwm_val) && m_pwm0 == INV(0))
             return false;
         m_pwm0 = INV(0);
         m_pwm1 = INV(pwm_val);
     } else {
-        if(m_pwm0 == INV(-pwm_val))
+        if(m_pwm0 == INV(-pwm_val) && m_pwm1 == INV(0))
             return false;
         m_pwm0 = INV(-pwm_val);
         m_pwm1 = INV(0);
@@ -70,6 +70,8 @@ bool Motor::direct_stop(int8_t) {
 }
 
 void Motor::stop() {
+    if (m_regulator && m_regulator->is_enabled())
+        m_regulator->disable();
     m_man.setMotors().stop(m_id).set();
 }
 
