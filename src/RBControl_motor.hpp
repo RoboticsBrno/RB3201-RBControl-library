@@ -9,6 +9,7 @@
 #include "RBControl_pinout.hpp"
 #include "RBControl_encoder.hpp"
 #include "RBControl_regulator.hpp"
+#include "RBControl_wheel.hpp"
 
 namespace rb {
 
@@ -19,6 +20,7 @@ class Motor {
     friend class Manager;
     friend class MotorChangeBuilder;
 public:
+
     /**
      * \brief Set motor power.
      * \param power of the motor <-100 - 100>
@@ -40,11 +42,11 @@ public:
     /**
      * \brief Drive motor to set position (according absolute value). See {@link Encoder::driveToValue}. 
      */
-    void driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
+    void driveToValue(Wheel::pos_type positionAbsolute, Wheel::speed_type speed, Wheel::callback_type callback);
     /**
      * \brief Drive motor to set position (according relative value). See {@link Encoder::drive}.
      */
-    void drive(int32_t positionRelative, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
+    void drive(Wheel::pos_type positionRelative, Wheel::speed_type speed, Wheel::callback_type callback);
 
     /**
      * \brief Get the Encoder instance for this motor. See {@link Encoder}.
@@ -56,7 +58,7 @@ public:
      */
     Encoder *enc() { return encoder(); }
 
-        /**
+    /**
      * \brief Get the Regulator instance for this motor. See {@link Regulator}.
      */
     Regulator *regulator();
@@ -66,6 +68,16 @@ public:
      */
     Regulator *reg() { return regulator(); }
 
+    /**
+     * \brief Get the Wheel instance for this motor. See {@link Wheel}.
+     */
+    Wheel *wheel();
+
+    /**
+     * \brief Sync virtual wheel with physical encoder.
+     */
+    void syncWheel();
+
 private:
     Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::value_type & pwm1);
 
@@ -74,6 +86,7 @@ private:
     bool direct_stop(int8_t);
 
     void init_encoder();
+    void init_wheel();
 
     Manager& m_man;
 
@@ -84,6 +97,7 @@ private:
     std::mutex m_mutex;
     std::unique_ptr<Encoder> m_encoder;
     std::unique_ptr<Regulator> m_regulator;
+    std::unique_ptr<Wheel> m_wheel;
     int8_t m_power;
 
     int8_t m_pwm_max_percent;
@@ -91,6 +105,8 @@ private:
 
     static bool s_reg_init;
     static std::unique_ptr<MotorChangeBuilder> s_motorChangeBuilder;
+    static int64_t s_wheel_process_time;
+    static Wheel::time_type s_wheel_process_time_step;
 };
 
 } // namespace rb

@@ -10,7 +10,7 @@
 #define TAG "RbRegulator"
 
 #ifndef RBC_REGULATOR_PERIOD_MS
-#define RBC_REGULATOR_PERIOD_MS 10
+#define RBC_REGULATOR_PERIOD_MS 100
 #endif
 
 namespace rb {
@@ -85,7 +85,6 @@ void Regulator::process() {
     const Num sum = m_sum + e;
     const Num dif = (e - m_e_last) * dt;
     Num x = m_p * e + m_s * sum + m_d * dif;
-    Num x1 = x;
     if (clamp_output(x)) {
         if (x < 0) {
             if (sum > m_sum)
