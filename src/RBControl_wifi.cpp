@@ -61,6 +61,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
             ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STACONNECTED");
             break;
         default:
+            ESP_LOGI(TAG, "Unhandled event %d", (int)event->event_id);
             break;
     }
     return ESP_OK;

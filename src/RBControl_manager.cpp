@@ -66,7 +66,7 @@ void Manager::install(ManagerInstallFlags flags) {
         m_battery.install();
     }
 
-    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 2, NULL);
+    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 5, NULL);
 }
 
 void Manager::setupExpander() {

@@ -225,7 +225,7 @@ bool Arm::solveIteration(Arm::CoordType target_x, Arm::CoordType target_y, bool&
         // Check for termintation
         auto dist_x = target_x - end_x;
         auto dist_y = target_y - end_y;
-        if(dist_x*dist_x + dist_y*dist_y <= 100) {
+        if(dist_x*dist_x + dist_y*dist_y <= 10) {
             return true;
         }
 
