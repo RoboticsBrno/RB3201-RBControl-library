@@ -223,16 +223,18 @@ void SmartServoBus::uartRoutineTrampoline(void *cookie) {
 }
 
 void SmartServoBus::uartRoutine() {
-    uart_config_t uart_config = {
-        .baud_rate = 115200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-    };
-    ESP_ERROR_CHECK(half_duplex::uart_param_config( m_uart, &uart_config ));
-    ESP_ERROR_CHECK(half_duplex::uart_driver_install(m_uart, 256, 0, 0, NULL, 0));
-    half_duplex::uart_set_half_duplex_pin(m_uart, m_uart_pin);
+    {
+        const uart_config_t uart_config = {
+            .baud_rate = 115200,
+            .data_bits = UART_DATA_8_BITS,
+            .parity = UART_PARITY_DISABLE,
+            .stop_bits = UART_STOP_BITS_1,
+            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        };
+        ESP_ERROR_CHECK(half_duplex::uart_param_config( m_uart, &uart_config ));
+        ESP_ERROR_CHECK(half_duplex::uart_driver_install(m_uart, 256, 0, 0, NULL, 0));
+        half_duplex::uart_set_half_duplex_pin(m_uart, m_uart_pin);
+    }
 
     struct tx_request req;
     struct rx_response resp;
@@ -264,9 +266,10 @@ void SmartServoBus::uartRoutine() {
 }
 
 size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
-    size_t bufsize = 0;
-    const TickType_t wait_period = MS_TO_TICKS(4);
+    constexpr TickType_t wait_period = MS_TO_TICKS(4);
     constexpr TickType_t timeout = MS_TO_TICKS(20);
+
+    size_t bufsize = 0;
 
     while(true) {
         size_t avail = 0;
