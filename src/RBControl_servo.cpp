@@ -4,6 +4,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_log.h>
+#include "RBControl_manager.hpp"
 #include "RBControl_servo.hpp"
 
 #include "half_duplex_uart.h"
@@ -28,8 +29,12 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
 
     m_uart_queue = xQueueCreate(8, sizeof(struct tx_request));
 
-    xTaskCreatePinnedToCore(&SmartServoBus::uartRoutineTrampoline, "rbsmartservobus_uart", 2048, this, 1, NULL, 0);
-    xTaskCreate(&SmartServoBus::regulatorRoutineTrampoline, "rbsmartservobus_reg", 2048, this, 2, NULL);
+    TaskHandle_t task;
+    xTaskCreatePinnedToCore(&SmartServoBus::uartRoutineTrampoline, "rbservo_uart", 2048, this, 1, &task, 1);
+    Manager::get().monitorTask(task);
+
+    xTaskCreate(&SmartServoBus::regulatorRoutineTrampoline, "rbservo_reg", 1024, this, 2, &task);
+    Manager::get().monitorTask(task);
 
     Angle val;
     for(uint8_t i = 0; i < servo_count; ++i) {

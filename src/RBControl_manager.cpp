@@ -66,7 +66,13 @@ void Manager::install(ManagerInstallFlags flags) {
         m_battery.install();
     }
 
-    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 5, NULL);
+    TaskHandle_t task;
+    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 5, &task);
+    monitorTask(task);
+
+#ifdef RB_DEBUG_MONITOR_TASKS
+    schedule(10000, [&]() { return printTasksDebugInfo(); });
+#endif
 }
 
 void Manager::setupExpander() {
@@ -221,6 +227,29 @@ rb::SmartServoBus& Manager::initSmartServoBus(uint8_t servo_count, uart_port_t u
 MotorChangeBuilder Manager::setMotors() {
     return MotorChangeBuilder(*this);
 }
+
+void Manager::monitorTask(TaskHandle_t task) {
+#ifdef RB_DEBUG_MONITOR_TASKS
+    m_tasks_mutex.lock();
+    m_tasks.push_back(task);
+    m_tasks_mutex.unlock();
+#endif
+}
+
+#ifdef RB_DEBUG_MONITOR_TASKS
+bool Manager::printTasksDebugInfo() {
+    std::lock_guard<std::mutex> lock(m_tasks_mutex);
+
+    printf("%16s %5s %5s\n", "Name", "prio", "stack");
+    printf("==========================================\n");
+    for(auto task : m_tasks) {
+        auto stackMark = uxTaskGetStackHighWaterMark(task);
+        auto prio = uxTaskPriorityGet(task);
+        printf("%16s %5d %5d\n", pcTaskGetTaskName(task), (int)prio, (int)stackMark);
+    }
+    return true;
+}
+#endif
 
 MotorChangeBuilder::MotorChangeBuilder(Manager &manager) : m_manager(manager) {
     m_values.reset(new std::vector<Manager::EventMotorsData>());

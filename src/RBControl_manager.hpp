@@ -33,6 +33,9 @@ inline ManagerInstallFlags operator|(ManagerInstallFlags a, ManagerInstallFlags 
     return static_cast<ManagerInstallFlags>(static_cast<int>(a) | static_cast<int>(b));
 }
 
+// Periodically print info about all rbcontrol tasks to the console
+//#define RB_DEBUG_MONITOR_TASKS 1
+
 /**
  * \brief The main library class for working with the RBControl board.
  *        Call the install() method at the start of your program.
@@ -91,6 +94,9 @@ public:
      * \param callback is a function which will be schedule with the set period.
      */
     void schedule(uint32_t period_ms, std::function<bool()> callback);
+
+    // internal api to monitor RBControl tasks
+    void monitorTask(TaskHandle_t task);
 
 private:
     Manager();
@@ -157,6 +163,13 @@ private:
     rb::Leds m_leds;
     rb::Battery m_battery;
     rb::SmartServoBus m_servos;
+
+#ifdef RB_DEBUG_MONITOR_TASKS
+    bool printTasksDebugInfo();
+
+    std::vector<TaskHandle_t> m_tasks;
+    std::mutex m_tasks_mutex;
+#endif
 };
 
 /**
