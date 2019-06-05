@@ -62,6 +62,10 @@ void Manager::install(ManagerInstallFlags flags) {
 
     setupExpander();
 
+    if(!(flags & MAN_DISABLE_PIEZO)) {
+        m_piezo.install();
+    }
+
     if(!(flags & MAN_DISABLE_BATTERY_MANAGEMENT)) {
         m_battery.install();
     }

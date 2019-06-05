@@ -27,6 +27,10 @@ enum ManagerInstallFlags {
                                                         //!< after 300ms of no set motor power calls.
     MAN_DISABLE_BATTERY_MANAGEMENT          = (1 << 1), //!< Disables the battery voltage auto-measurement and
                                                         //!< auto-shutdown on low battery voltage.
+    MAN_DISABLE_PIEZO                       = (1 << 2), //!< Do not initialize piezo on pins IO25/IO33, keeps
+                                                        //!< the pins free for other functions.
+                                                        //!< Warning: disabling the piezo is not recommanded because
+                                                        //!< it is used to signalize low battery voltage.
 };
 
 inline ManagerInstallFlags operator|(ManagerInstallFlags a, ManagerInstallFlags b) {
