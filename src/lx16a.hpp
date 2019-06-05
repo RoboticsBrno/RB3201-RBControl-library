@@ -5,6 +5,7 @@
 #include <driver/uart.h>
 #include <soc/io_mux_reg.h>
 #include <chrono>
+#include <esp_log.h>
 
 #include "RBControl_angle.hpp"
 
@@ -142,11 +143,11 @@ public:
         float position = pos.deg();
         int time = t.count();
         if ( position < 0 || position > 240 )
-            throw std::runtime_error( "Position out of range" );
+            ESP_LOGE("LX16A", "Position out of range");
         if ( time < 0 )
-            throw std::runtime_error( "Time is negative" );
+            ESP_LOGE("LX16A",  "Time is negative" );
         if ( time > 30000 )
-            throw std::runtime_error( "Time is out of range" );
+            ESP_LOGE("LX16A", "Time is out of range" );
         auto p = Packet::move( id, Servo::posFromDeg( position ), time );
         return p;
     }
@@ -154,7 +155,7 @@ public:
     static Packet move(Id id, rb::Angle pos ) {
         float position = pos.deg();
         if ( position < 0 || position > 240 )
-            throw std::runtime_error( "Position out of range" );
+            ESP_LOGE("LX16A", "Position out of range" );
         auto p = Packet::move( id, Servo::posFromDeg( position ), 0 );
         return p;
     }
@@ -164,16 +165,17 @@ public:
         int bottom = b.deg();
         int top = t.deg();
         if ( bottom < 0 || bottom > 240 )
-            throw std::runtime_error( "Bottom limit out of range" );
+            ESP_LOGE("LX16A", "Bottom limit out of range" );
         if ( top < 0 || top > 240 )
-            throw std::runtime_error( "Top limit out of range" );
+            ESP_LOGE("LX16A", "Top limit out of range" );
         auto p = Packet::limitAngle( id, Servo::posFromDeg( bottom ), Servo::posFromDeg( top ) );
         return p;
     }
 
     static Packet setId( Id oldId, Id newId ) {
-        if ( newId >= 254 )
-            throw std::runtime_error( "Invalid ID specified" );
+        if ( newId >= 254 ) {
+            ESP_LOGE("LX16A", "Invalid ID specified" );
+        }
         auto p = Packet::setId( oldId, newId );
         return p;
     }
