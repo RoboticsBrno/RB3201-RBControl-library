@@ -1,4 +1,8 @@
+#include <esp_log.h>
+
 #include "RBControl_linesensor.hpp"
+
+#define TAG "RBControlLineSensor"
 
 namespace rb {
 
@@ -15,7 +19,7 @@ esp_err_t LineSensor::install(const LineSensor::Config& cfg) {
     bool expected = false;
     if(!m_installed.compare_exchange_strong(expected, true))
         return ESP_OK;
-    
+
     esp_err_t ret;
     spi_bus_config_t buscfg = { 0 };
     buscfg.miso_io_num = cfg.pin_miso;
@@ -88,6 +92,36 @@ esp_err_t LineSensor::read(std::vector<uint16_t>& results, uint8_t leds_mask) {
         results[orig_size + idx] = ((trans->rx_data[1] & 0x03) << 8) | trans->rx_data[2];
     }
     return ESP_OK;
+}
+
+int16_t LineSensor::readLine(bool white_line) {
+    std::vector<uint16_t> vals;
+
+    auto res = this->read(vals);
+    if(res != ESP_OK) {
+        ESP_LOGE(TAG, "read() failed: %d", res);
+        return 0;
+    }
+
+    uint32_t weighted = 0;
+    uint16_t sum = 0;
+
+    for(size_t i = 0; i < vals.size(); ++i) {
+        auto val = vals[i];
+        if(white_line)
+            val = MAX_VAL - val;
+
+        if(val > 50) {
+            weighted += uint32_t(val) * i * MAX_VAL;
+            sum += val;
+        }
+    }
+
+    if(sum == 0)
+        return 0;
+
+    constexpr int16_t middle = float(LEDS-1)/2 * MAX_VAL;
+    return (weighted / sum) - middle;
 }
 
 }; // namespace rb

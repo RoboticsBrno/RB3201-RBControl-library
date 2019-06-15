@@ -11,6 +11,7 @@ class LineSensor {
     friend class Manager;
 public:
     static constexpr int LEDS = 8;
+    static constexpr uint16_t MAX_VAL = 1023;
 
     struct Config {
         Config(int freq = 1350000, spi_host_device_t spi_dev = HSPI_HOST,
@@ -37,6 +38,7 @@ public:
     esp_err_t install(const Config& pins = Config());
 
     esp_err_t read(std::vector<uint16_t>& results, uint8_t leds_mask = 0xFF);
+    int16_t readLine(bool white_line = false);
 
 private:
     LineSensor();
