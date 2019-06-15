@@ -15,6 +15,7 @@
 #include "RBControl_encoder.hpp"
 #include "RBControl_servo.hpp"
 #include "RBControl_motor.hpp"
+#include "RBControl_linesensor.hpp"
 
 namespace rb {
 
@@ -80,6 +81,8 @@ public:
      * \return Instance of the class {@link SmartServoBus} which manage the intelligent servos.
      */
     SmartServoBus& servoBus() { return m_servos; };
+
+    LineSensor& lineSensor() { return m_lineSensor; }
 
     Adafruit_MCP23017& expander() { return m_expander; } //!< Get the expander {@link Adafruit_MCP23017}. LEDs and buttons are connected to it.
     Piezo& piezo() { return m_piezo; } //!< Get the {@link Piezo} controller
@@ -167,6 +170,7 @@ private:
     rb::Leds m_leds;
     rb::Battery m_battery;
     rb::SmartServoBus m_servos;
+    rb::LineSensor m_lineSensor;
 
 #ifdef RB_DEBUG_MONITOR_TASKS
     bool printTasksDebugInfo();
