@@ -37,8 +37,8 @@ public:
 
     esp_err_t install(const Config& pins = Config());
 
-    esp_err_t read(std::vector<uint16_t>& results, uint8_t leds_mask = 0xFF);
-    int16_t readLine(bool white_line = false);
+    esp_err_t read(std::vector<uint16_t>& results, bool differential = false, uint8_t leds_mask = 0xFF);
+    float readLine(bool white_line = false, float noise_limit=0.05f, float line_threshold=0.20f);
 
 private:
     LineSensor();

@@ -1,3 +1,4 @@
+#include <cmath>
 #include <esp_log.h>
 
 #include "RBControl_linesensor.hpp"
@@ -27,7 +28,7 @@ esp_err_t LineSensor::install(const LineSensor::Config& cfg) {
     buscfg.sclk_io_num = cfg.pin_sck;
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
-    
+
     spi_device_interface_config_t devcfg = { 0 };
     devcfg.clock_speed_hz = cfg.freq;
     devcfg.mode = 0;
@@ -49,7 +50,7 @@ esp_err_t LineSensor::install(const LineSensor::Config& cfg) {
     return ESP_OK;
 }
 
-esp_err_t LineSensor::read(std::vector<uint16_t>& results, uint8_t leds_mask) {
+esp_err_t LineSensor::read(std::vector<uint16_t>& results, bool differential, uint8_t leds_mask) {
     if(!m_installed) {
         return ESP_FAIL;
     }
@@ -67,7 +68,7 @@ esp_err_t LineSensor::read(std::vector<uint16_t>& results, uint8_t leds_mask) {
         t.flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
         t.length = 3 * 8;
         t.tx_data[0] = 1;
-        t.tx_data[1] = (0 << 7) | ((i & 0x07) << 4);
+        t.tx_data[1] = (differential << 7) | ((i & 0x07) << 4);
 
         esp_err_t res = spi_device_queue_trans(m_spi, &transactions[i], 100);
         if(res != ESP_OK)
@@ -77,7 +78,7 @@ esp_err_t LineSensor::read(std::vector<uint16_t>& results, uint8_t leds_mask) {
 
     if(requested == 0)
         return ESP_OK;
-    
+
     results.resize(orig_size + requested);
 
     spi_transaction_t *trans = NULL;
@@ -94,7 +95,7 @@ esp_err_t LineSensor::read(std::vector<uint16_t>& results, uint8_t leds_mask) {
     return ESP_OK;
 }
 
-int16_t LineSensor::readLine(bool white_line) {
+float LineSensor::readLine(bool white_line, float noise_limit, float line_threshold) {
     std::vector<uint16_t> vals;
 
     auto res = this->read(vals);
@@ -106,22 +107,31 @@ int16_t LineSensor::readLine(bool white_line) {
     uint32_t weighted = 0;
     uint16_t sum = 0;
 
+    const uint16_t noise = noise_limit * MAX_VAL;
+    const uint16_t threshold = line_threshold * MAX_VAL;
+
+    bool on_line = false;
     for(size_t i = 0; i < vals.size(); ++i) {
         auto val = vals[i];
         if(white_line)
             val = MAX_VAL - val;
 
-        if(val > 50) {
-            weighted += uint32_t(val) * i * MAX_VAL;
-            sum += val;
-        }
+        if(val < noise)
+            continue;
+
+        if(val >= threshold)
+            on_line = true;
+
+        weighted += uint32_t(val) * i * MAX_VAL;
+        sum += val;
     }
 
-    if(sum == 0)
-        return 0;
+    if(sum == 0 || !on_line)
+        return std::nanf("");
 
     constexpr int16_t middle = float(LEDS-1)/2 * MAX_VAL;
-    return (weighted / sum) - middle;
+    const int16_t result = (weighted / sum) - middle;
+    return float(result) / float(middle);
 }
 
 }; // namespace rb
