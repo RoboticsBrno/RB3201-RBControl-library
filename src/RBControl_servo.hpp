@@ -21,6 +21,7 @@ public:
     SmartServoBus();
     ~SmartServoBus() {}
 
+    void setId(uint8_t oldId, uint8_t newId);
     void set(uint8_t id, Angle ang, float speed = 180.f, float speed_raise = 0.0015f);
     void limit(uint8_t id,  Angle bottom, Angle top);
     Angle pos(uint8_t id);

@@ -61,6 +61,11 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
     }
 }
 
+void SmartServoBus::setId(uint8_t oldId, uint8_t newId) {
+    auto pkt = lw::Servo().setId(oldId+1, newId+1);
+    send(pkt);
+}
+
 void SmartServoBus::set(uint8_t id, Angle ang, float speed, float speed_raise) {
     speed = std::max(1.f, std::min(240.f, speed)) / 10.f;
     const uint16_t angle = std::max(0.f, std::min(360.f, (float)ang.deg())) * 100;
@@ -298,6 +303,13 @@ size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
 
         TickType_t waiting = 0;
         while(half_duplex::uart_get_buffered_data_len(m_uart, &avail) != ESP_OK || avail < need) {
+            
+            printf("%2d: ", avail);
+            for(int i = 0; i < avail; ++i) {
+                printf("%hhX ", buff[i]);
+            }
+            printf("\n");
+
             if(waiting >= timeout) {
                 ESP_LOGE(TAG, "timeout when waiting for data!");
                 return 0;
