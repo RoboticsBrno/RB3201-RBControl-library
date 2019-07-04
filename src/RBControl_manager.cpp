@@ -223,7 +223,7 @@ bool Manager::motorsFailSafe() {
     return true;
 }
 
-rb::SmartServoBus& Manager::initSmartServoBus(uint8_t servo_count, uart_port_t uart, gpio_num_t pin) {
+rb::SmartServoBus& Manager::initSmartServoBus(uint8_t servo_count, gpio_num_t pin, uart_port_t uart) {
     m_servos.install(servo_count, uart, pin);
     return m_servos;
 }
