@@ -74,8 +74,14 @@ void SmartServoBus::set(uint8_t id, Angle ang, float speed, float speed_raise) {
 
     auto& si = m_servos[id];
     if(!si.hasValidCurrent()) {
-        ESP_LOGE(TAG, "failed to get servo %d position, can't move it!", int(id));
-        return;
+        const auto cur = pos(id);
+        if(cur.isNaN()) {
+            ESP_LOGE(TAG, "failed to get servo %d position, can't move it!", int(id));
+            return;
+        }
+        const uint16_t deg_val = 100 * cur.deg();
+        si.current = deg_val;
+        si.target = deg_val;
     }
 
     if(si.current == angle)
