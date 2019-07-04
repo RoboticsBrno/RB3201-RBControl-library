@@ -29,7 +29,7 @@ public:
 
     void setAutoStop(uint8_t id, bool enable = true);
 
-    void setId(uint8_t newId, uint8_t destId = 253);
+    void setId(uint8_t newId, uint8_t destId = 254);
 
 private:
     void install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin);

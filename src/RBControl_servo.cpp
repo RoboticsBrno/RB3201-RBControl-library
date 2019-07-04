@@ -62,7 +62,7 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
 }
 
 void SmartServoBus::setId(uint8_t newId, uint8_t destId) {
-    auto pkt = lw::Servo().setId(destId+1, newId+1);
+    auto pkt = lw::Servo().setId(destId, newId);
     send(pkt);
 }
 
@@ -97,7 +97,7 @@ void SmartServoBus::set(uint8_t id, Angle ang, float speed, float speed_raise) {
 }
 
 Angle SmartServoBus::pos(uint8_t id) {
-    lw::Packet pkt(id+1, lw::Command::SERVO_POS_READ);
+    lw::Packet pkt(id, lw::Command::SERVO_POS_READ);
 
     struct rx_response resp = { 0 };
     auto queue = xQueueCreate(1, sizeof(struct rx_response));
@@ -125,7 +125,7 @@ Angle SmartServoBus::posOffline(uint8_t id) {
 }
 
 void SmartServoBus::limit(uint8_t id,  Angle bottom, Angle top) {
-    auto pkt = lw::Servo::limit(id+1, bottom, top);
+    auto pkt = lw::Servo::limit(id, bottom, top);
     send(pkt);
 }
 
@@ -176,7 +176,7 @@ bool SmartServoBus::regulateServo(QueueHandle_t responseQueue, size_t id, uint32
 
         if(s.auto_stop)
         {
-            lw::Packet pos_req(id+1, lw::Command::SERVO_POS_READ);
+            lw::Packet pos_req(id, lw::Command::SERVO_POS_READ);
             send(pos_req, responseQueue, true);
             xQueueReceive(responseQueue, &resp, portMAX_DELAY);
             if(resp.size == 0x08) {
@@ -220,7 +220,7 @@ bool SmartServoBus::regulateServo(QueueHandle_t responseQueue, size_t id, uint32
         move_pos_deg = float(s.current)/100.f;
     }
 
-    const auto pkt = lw::Servo::move(id+1, Angle::deg(move_pos_deg), std::chrono::milliseconds(timeSliceMs-5));
+    const auto pkt = lw::Servo::move(id, Angle::deg(move_pos_deg), std::chrono::milliseconds(timeSliceMs-5));
     send(pkt, responseQueue, false, true);
 
     if(xQueueReceive(responseQueue, &resp, 500 / portTICK_PERIOD_MS) != pdTRUE) {
