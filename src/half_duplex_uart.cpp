@@ -770,8 +770,7 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
         uart_event.type = UART_EVENT_MAX;
         if(uart_intr_status & UART_TX_DONE_INT_ST_M) {
             if(p_uart->half_duplex_pin != 0) {
-                GPIO.enable_w1tc = (1 << p_uart->half_duplex_pin);
-                REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (p_uart->half_duplex_pin * 4), SIG_GPIO_OUT_IDX);
+                gpio_set_direction(p_uart->half_duplex_pin, GPIO_MODE_INPUT);
             }
 
             half_duplex::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
@@ -1223,7 +1222,7 @@ int uart_write_bytes_with_break(uart_port_t uart_num, const char* src, size_t si
     UART_CHECK((brk_len > 0 && brk_len < 256), "break_num error", (-1));
     return uart_tx_all(uart_num, src, size, 1, brk_len);
 }
-#endif 
+#endif
 
 static bool uart_check_buf_full(uart_port_t uart_num)
 {
