@@ -62,8 +62,16 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
 }
 
 void SmartServoBus::setId(uint8_t newId, uint8_t destId) {
-    auto pkt = lw::Servo().setId(destId, newId);
+    auto pkt = lw::Packet::setId(destId, newId);
     send(pkt);
+}
+
+uint8_t SmartServoBus::getId(uint8_t destId) {
+    struct rx_response resp;
+    sendAndReceive(lw::Packet::getId(destId), resp);
+    if(resp.size != 7)
+        return 0xFF;
+    return resp.data[5];
 }
 
 void SmartServoBus::set(uint8_t id, Angle ang, float speed, float speed_raise) {
@@ -99,13 +107,8 @@ void SmartServoBus::set(uint8_t id, Angle ang, float speed, float speed_raise) {
 Angle SmartServoBus::pos(uint8_t id) {
     lw::Packet pkt(id, lw::Command::SERVO_POS_READ);
 
-    struct rx_response resp = { 0 };
-    auto queue = xQueueCreate(1, sizeof(struct rx_response));
-    send(pkt, queue, true);
-
-    xQueueReceive(queue, &resp, portMAX_DELAY);
-    vQueueDelete(queue);
-
+    struct rx_response resp;
+    sendAndReceive(pkt, resp, true);
     if(resp.size != 0x08) {
         return Angle::nan();
     }
@@ -302,8 +305,7 @@ size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
         }
 
         if(need + oldsize > bufcap) {
-            ESP_LOGE(TAG, "invalid packet size received: %d, aborting.\n", (int)buff[3]);
-            abort();
+            ESP_LOGE(TAG, "invalid packet size received: %d.\n", (int)buff[3]);
             return 0;
         }
 
@@ -347,6 +349,16 @@ void SmartServoBus::send(const lw::Packet& pkt, QueueHandle_t responseQueue, boo
     } else {
         xQueueSendToBack(m_uart_queue, &req, portMAX_DELAY);
     }
+}
+
+void SmartServoBus::sendAndReceive(const lw::Packet& pkt, struct SmartServoBus::rx_response& res, bool to_front) {
+
+    memset(&res, 0, sizeof(struct rx_response));
+
+    auto queue = xQueueCreate(1, sizeof(struct rx_response));
+    send(pkt, queue, true);
+    xQueueReceive(queue, &res, portMAX_DELAY);
+    vQueueDelete(queue);
 }
 
 }; // namespace rb

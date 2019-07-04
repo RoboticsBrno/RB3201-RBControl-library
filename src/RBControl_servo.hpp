@@ -30,6 +30,7 @@ public:
     void setAutoStop(uint8_t id, bool enable = true);
 
     void setId(uint8_t newId, uint8_t destId = 254);
+    uint8_t getId(uint8_t destId = 254);
 
 private:
     void install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin);
@@ -41,9 +42,6 @@ private:
     static void uartRoutineTrampoline(void *cookie);
     void uartRoutine();
     size_t uartReceive(uint8_t *buff, size_t bufcap);
-
-    void send(const lw::Packet& pkt,
-        QueueHandle_t responseQueue = NULL, bool expect_response = false, bool to_front = false);
 
     struct servo_info {
         servo_info() {
@@ -80,6 +78,10 @@ private:
         uint8_t data[16];
         uint8_t size;
     };
+
+    void send(const lw::Packet& pkt,
+        QueueHandle_t responseQueue = NULL, bool expect_response = false, bool to_front = false);
+    void sendAndReceive(const lw::Packet& pkt, SmartServoBus::rx_response& res, bool to_front = false);
 
     std::vector<servo_info> m_servos;
     std::mutex m_mutex;

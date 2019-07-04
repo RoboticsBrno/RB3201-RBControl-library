@@ -78,6 +78,10 @@ struct Packet {
         return Packet( id, Command::SERVO_ID_WRITE, newId );
     }
 
+    static Packet getId(Id id) {
+        return Packet(id, Command::SERVO_ID_READ);
+    }
+
     void _buildHeader() {
         _data.push_back( 0x55 );
         _data.push_back( 0x55 );
