@@ -38,6 +38,7 @@ void Battery::install() {
 
 void Battery::setCoef(float coef) {
     m_coef.store(coef);
+    m_voltageMv.store(m_raw.load() * coef);
 }
 
 float Battery::coef() const {
