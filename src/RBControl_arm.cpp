@@ -223,13 +223,14 @@ bool Arm::solveIteration(Arm::CoordType target_x, Arm::CoordType target_y, bool&
         end_y = roundCoord(by + sin_rot_ang*to_end_x + cos_rot_ang*to_end_y);
 
         // Check for termintation
-        auto dist_x = target_x - end_x;
-        auto dist_y = target_y - end_y;
-        if(dist_x*dist_x + dist_y*dist_y <= 10) {
+        const auto dist_x = target_x - end_x;
+        const auto dist_y = target_y - end_y;
+        const auto dist = dist_x*dist_x + dist_y*dist_y;
+        if(dist <= 15) {
             return true;
         }
 
-        modified = modified || abs(rot_ang)*to_end_mag > AngleType(0.000001);
+        modified = modified || fabs(rot_ang)*to_end_mag > AngleType(0.000001);
     }
     return false;
 }

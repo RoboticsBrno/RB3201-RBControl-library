@@ -247,7 +247,7 @@ float Encoder::speed() {
 
     if(esp_timer_get_time() > (last + MAX_ENGINE_PERIOD_US)) {
         return 0.f;
-    } else if(abs(diff) < MIN_ENGINE_PERIOD_US) {
+    } else if(llabs(diff) < MIN_ENGINE_PERIOD_US) {
         return 0.f;
     } else {
         return 1000000.f / diff;
