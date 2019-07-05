@@ -74,6 +74,7 @@ private:
     static AngleType clamp(AngleType ang);
 
     Arm(const Definition &def);
+    Arm(const Arm&) = delete;
 
     template<typename T = CoordType> static T roundCoord(AngleType val);
 

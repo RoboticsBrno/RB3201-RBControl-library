@@ -17,6 +17,7 @@ public:
 
 private:
     Leds(Adafruit_MCP23017& expander);
+    Leds(const Leds&) = delete;
     ~Leds();
 
     Adafruit_MCP23017& m_expander;

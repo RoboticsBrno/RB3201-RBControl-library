@@ -33,6 +33,8 @@ public:
     uint8_t getId(uint8_t destId = 254);
 
 private:
+    SmartServoBus(const SmartServoBus&) = delete;
+
     void install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin);
 
     static void regulatorRoutineTrampoline(void *cookie);

@@ -37,7 +37,7 @@ public:
     void stop();
 
     /**
-     * \brief Drive motor to set position (according absolute value). See {@link Encoder::driveToValue}. 
+     * \brief Drive motor to set position (according absolute value). See {@link Encoder::driveToValue}.
      */
     void driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
     /**
@@ -57,6 +57,7 @@ public:
 
 private:
     Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::value_type & pwm1);
+    Motor(const Motor&) = delete;
 
     bool direct_power(int8_t power);
     bool direct_pwmMaxPercent(int8_t percent);

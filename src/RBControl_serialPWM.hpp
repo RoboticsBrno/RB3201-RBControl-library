@@ -31,6 +31,7 @@ public:
     static int resolution();
 
 private:
+    SerialPWM(const SerialPWM&) = delete;
 
     static volatile void* i2snum2struct(const int num);
 

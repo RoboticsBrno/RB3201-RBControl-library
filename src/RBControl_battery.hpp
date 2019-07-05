@@ -31,6 +31,7 @@ public:
 
 private:
     Battery(Piezo& piezo, Leds& leds, Adafruit_MCP23017& expander);
+    Battery(const Battery&) = delete;
     ~Battery();
 
     void install();

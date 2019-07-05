@@ -15,6 +15,7 @@ public:
 
 private:
     Piezo();
+    Piezo(const Piezo&) = delete;
     ~Piezo();
 
     void install();

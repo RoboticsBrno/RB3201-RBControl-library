@@ -18,33 +18,32 @@ class Encoder{
     friend class Manager;
     friend class Motor;
 public:
-    Encoder(Manager& man, MotorId id);
     ~Encoder();
 
     /**
      * \brief Drive motor to set position (according absolute value).
-     * 
+     *
      * \param positionAbsolute absolute position on which the motor drive \n
      *        e.g. if the actual motor position (`value()`) is 1000 and the `positionAbsolute` is 100
-     *        then the motor will go backward to position 100 
+     *        then the motor will go backward to position 100
      * \param power maximal power of the motor when go to set position, allowed values: <0 - 100>
      * \param callback is a function which will be called after the motor arrives to set position `[optional]`
      */
     void driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
     /**
      * \brief Drive motor to set position (according relative value).
-     * 
+     *
      * \param positionRelative relative position on which the motor drive \n
      *        e.g. if the actual motor position (`value()`) is 1000 and the `positionRelative` is 100
      *        then the motor will go to position 1100
      * \param power maximal power of the motor when go to set position, allowed values: <0 - 100>
-     * \param callback is a function which will be call after the motor arrive to set position `[optional]`  
+     * \param callback is a function which will be call after the motor arrive to set position `[optional]`
      */
     void drive(int32_t positionRelative, uint8_t power, std::function<void(Encoder&)> callback = nullptr);
 
     /**
      * \brief Get number of edges from encoder.
-     * \return The number of counted edges from the first initialize 
+     * \return The number of counted edges from the first initialize
      *         of the encoder {@link Manager::initEncoder}
      */
     int32_t value();
@@ -55,6 +54,9 @@ public:
      */
     float speed();
 private:
+    Encoder(Manager& man, MotorId id);
+    Encoder(const Encoder&) = delete;
+
     static void IRAM_ATTR isrGpio(void* cookie);
 
     void install();
