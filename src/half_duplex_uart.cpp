@@ -770,7 +770,14 @@ static void IRAM_ATTR uart_rx_intr_handler_default(void *param)
         uart_event.type = UART_EVENT_MAX;
         if(uart_intr_status & UART_TX_DONE_INT_ST_M) {
             if(p_uart->half_duplex_pin != 0) {
-                gpio_set_direction(p_uart->half_duplex_pin, GPIO_MODE_INPUT);
+                // gpio_set_direction does not have IRAM_ATTR, code below extracted from it.
+                // gpio_set_direction(p_uart->half_duplex_pin, GPIO_MODE_INPUT);
+                if (p_uart->half_duplex_pin < 32) {
+                    GPIO.enable_w1tc = (0x1 << p_uart->half_duplex_pin );
+                } else {
+                    GPIO.enable1_w1tc.data = (0x1 << (p_uart->half_duplex_pin - 32));
+                }
+                REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (p_uart->half_duplex_pin  * 4), SIG_GPIO_OUT_IDX);
             }
 
             half_duplex::uart_disable_intr_mask_from_isr((uart_port_t)uart_num, UART_TX_DONE_INT_ENA_M);
