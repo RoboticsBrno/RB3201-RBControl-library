@@ -1,4 +1,4 @@
-/*************************************************** 
+/***************************************************
  This is a library for the MCP23017 i2c port expander
 
  These displays use I2C to communicate, 2 pins are required to
@@ -118,6 +118,9 @@ void Adafruit_MCP23017::updateRegisterBit(uint8_t pin, uint8_t pValue, uint8_t p
 	uint8_t regValue;
 	uint8_t regAddr=regForPin(pin,portAaddr,portBaddr);
 	uint8_t bit=bitForPin(pin);
+
+	std::lock_guard<std::mutex> l(m_mutex);
+
 	regValue = readRegister(regAddr);
 
 	// set the value for the particular bit
@@ -167,6 +170,8 @@ uint16_t Adafruit_MCP23017::readGPIOAB() {
 	uint16_t ba = 0;
 	uint8_t a;
 
+	std::lock_guard<std::mutex> l(m_mutex);
+
 	// read the current GPIO output latches
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
@@ -196,6 +201,7 @@ uint16_t Adafruit_MCP23017::readGPIOAB() {
  * Parameter b should be 0 for GPIOA, and 1 for GPIOB.
  */
 uint8_t Adafruit_MCP23017::readGPIO(uint8_t b) {
+	std::lock_guard<std::mutex> l(m_mutex);
 
 	// read the current GPIO output latches
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
@@ -225,6 +231,8 @@ uint8_t Adafruit_MCP23017::readGPIO(uint8_t b) {
  * Writes all the pins in one go. This method is very useful if you are implementing a multiplexed matrix and want to get a decent refresh rate.
  */
 void Adafruit_MCP23017::writeGPIOAB(uint16_t ba) {
+	std::lock_guard<std::mutex> l(m_mutex);
+
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, (m_i2caddr << 1) | I2C_MASTER_WRITE, 1 /* expect ack */);
@@ -240,6 +248,7 @@ void Adafruit_MCP23017::digitalWrite(uint8_t pin, uint8_t d) {
 	uint8_t gpio;
 	uint8_t bit=bitForPin(pin);
 
+	std::lock_guard<std::mutex> l(m_mutex);
 
 	// read the current GPIO output latches
 	uint8_t regAddr=regForPin(pin,MCP23017_OLATA,MCP23017_OLATB);
@@ -258,6 +267,8 @@ void Adafruit_MCP23017::pullUp(uint8_t p, uint8_t d) {
 }
 
 uint8_t Adafruit_MCP23017::digitalRead(uint8_t pin) {
+	std::lock_guard<std::mutex> l(m_mutex);
+
 	uint8_t bit=bitForPin(pin);
 	uint8_t regAddr=regForPin(pin,MCP23017_GPIOA,MCP23017_GPIOB);
 	return (readRegister(regAddr) >> bit) & 0x1;
@@ -273,6 +284,8 @@ uint8_t Adafruit_MCP23017::digitalRead(uint8_t pin) {
  * the default configuration.
  */
 void Adafruit_MCP23017::setupInterrupts(uint8_t mirroring, uint8_t openDrain, uint8_t polarity){
+	std::lock_guard<std::mutex> l(m_mutex);
+
 	// configure the port A
 	uint8_t ioconfValue=readRegister(MCP23017_IOCONA);
 	ioconfValue = bitWrite(ioconfValue,6,mirroring);
@@ -291,6 +304,8 @@ void Adafruit_MCP23017::setupInterrupts(uint8_t mirroring, uint8_t openDrain, ui
 uint8_t Adafruit_MCP23017::getLastInterruptPin(){
 	uint8_t intf;
 
+	std::lock_guard<std::mutex> l(m_mutex);
+
 	// try port A
 	intf=readRegister(MCP23017_INTFA);
 	for(int i=0;i<8;i++) if (bitRead(intf,i)) return i;
@@ -305,6 +320,7 @@ uint8_t Adafruit_MCP23017::getLastInterruptPin(){
 uint8_t Adafruit_MCP23017::getLastInterruptPinValue(){
 	uint8_t intPin=getLastInterruptPin();
 	if(intPin!=MCP23017_INT_ERR){
+		std::lock_guard<std::mutex> l(m_mutex);
 		uint8_t intcapreg=regForPin(intPin,MCP23017_INTCAPA,MCP23017_INTCAPB);
 		uint8_t bit=bitForPin(intPin);
 		return (readRegister(intcapreg)>>bit) & (0x01);
@@ -312,5 +328,3 @@ uint8_t Adafruit_MCP23017::getLastInterruptPinValue(){
 
 	return MCP23017_INT_ERR;
 }
-
-
