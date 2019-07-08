@@ -139,7 +139,7 @@ void Arm::setServos(float speed) {
 bool Arm::solve(Arm::CoordType target_x, Arm::CoordType target_y) {
     bool modified = false;
     bool result = false;
-    for(size_t i = 0; i < 10; ++i) {
+    for(size_t i = 0; i < 20; ++i) {
         if(solveIteration(target_x, target_y, modified)) {
             result = true;
             break;
@@ -148,21 +148,13 @@ bool Arm::solve(Arm::CoordType target_x, Arm::CoordType target_y) {
             break;
     }
 
-    Bone *prev = nullptr;
-    for(size_t i = 0; i < m_bones.size(); ++i) {
-        m_bones[i].updatePos(prev);
-        prev = &m_bones[i];
-    }
+    fixBodyCollision();
 
     return result;
 }
 
 bool Arm::solveIteration(Arm::CoordType target_x, Arm::CoordType target_y, bool& modified) {
-    Bone *prev = nullptr;
-    for(size_t i = 0; i < m_bones.size(); ++i) {
-        m_bones[i].updatePos(prev);
-        prev = &m_bones[i];
-    }
+    updateBones();
 
     // Move the target out of the robot's body
     if(target_x < m_def.body_radius - m_def.arm_offset_x) {
@@ -268,15 +260,6 @@ Arm::AngleType Arm::rotateArm(size_t idx, Arm::AngleType rot_ang) {
         auto nx = roundCoord(x + (cos(angle) * b.def.length));
         auto ny = roundCoord(y + (sin(angle) * b.def.length));
 
-        // Check collision with the body
-        if(nx < m_def.body_radius - m_def.arm_offset_x) {
-            if(ny > m_def.arm_offset_y)
-                return 0;
-        } else {
-            if(ny > m_def.arm_offset_y + m_def.body_height)
-                return 0;
-        }
-
         // Check collision with the base arm
         if(i > 0) {
             const auto diff = Angle::_T(angle) - base.absAngle.rad();
@@ -295,6 +278,37 @@ Arm::AngleType Arm::rotateArm(size_t idx, Arm::AngleType rot_ang) {
     auto res = clamp(new_rel_ang - AngleType(me.relAngle.rad()));
     me.relAngle = Angle::rad(Angle::_T(new_rel_ang));
     return res;
+}
+
+void Arm::fixBodyCollision() {
+    auto& end = m_bones.back();
+    auto& base = m_bones.front();
+    if(base.relAngle.rad() > base.def.rel_max.rad())
+        base.relAngle = base.def.rel_max;
+    else if(base.relAngle.rad() < base.def.rel_min.rad())
+        base.relAngle = base.def.rel_min;
+
+    updateBones();
+
+    while(isInBody(end.x, end.y)) {
+        Angle newang = clamp(base.relAngle - 0.01_rad);
+        if(newang.rad() > base.def.rel_max.rad() || newang.rad() < base.def.rel_min.rad())
+            return;
+        base.relAngle = newang;
+        updateBones();
+    }
+}
+
+bool Arm::isInBody(Arm::CoordType x, Arm::CoordType y) const {
+    return abs(x) <= m_def.body_radius && y >= m_def.arm_offset_y;
+}
+
+void Arm::updateBones() {
+    Bone *prev = nullptr;
+    for(size_t i = 0; i < m_bones.size(); ++i) {
+        m_bones[i].updatePos(prev);
+        prev = &m_bones[i];
+    }
 }
 
 Bone::Bone(const Arm::BoneDefinition& def) : def(def) {

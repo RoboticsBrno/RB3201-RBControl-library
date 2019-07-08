@@ -80,6 +80,9 @@ private:
 
     bool solveIteration(CoordType target_x, CoordType target_y, bool& modified);
     AngleType rotateArm(size_t idx, AngleType rot_ang);
+    void fixBodyCollision();
+    bool isInBody(CoordType x, CoordType y) const;
+    void updateBones();
 
     const Definition m_def;
     std::vector<Bone> m_bones;
