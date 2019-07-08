@@ -27,5 +27,9 @@
     ],
     "version": "5.1.6",
     "frameworks": [ "espidf", "arduino" ],
-    "platforms": "espressif32"
+    "platforms": "espressif32",
+    "build": {
+        "flags": "-std=c++14",
+        "unflags": "-std=gnu++11"
+    }
 }
