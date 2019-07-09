@@ -64,6 +64,7 @@ static const gpio_num_t ENC8B = IO35;
 
 static const gpio_num_t POWER_OFF = IO32;
 static const gpio_num_t BATT_REF = IO34;
+static const adc_unit_t BATT_ADC_UNIT = ADC_UNIT_1;
 static const adc1_channel_t BATT_ADC_CHANNEL = ADC1_CHANNEL_6;
 
 static const gpio_num_t PIEZO_A = ENC7A;
