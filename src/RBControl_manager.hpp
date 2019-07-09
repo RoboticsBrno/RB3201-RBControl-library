@@ -162,7 +162,7 @@ private:
     std::recursive_mutex m_timers_mutex;
 
     struct timeval m_motors_last_set;
-    std::vector<Motor*> m_motors;
+    std::vector<std::unique_ptr<Motor>> m_motors;
     SerialPWM m_motors_pwm;
 
     Adafruit_MCP23017 m_expander;
