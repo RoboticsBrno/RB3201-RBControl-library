@@ -40,12 +40,16 @@ void Battery::install() {
     });
 }
 
-void Battery::setCoef(float coef) {
+void Battery::setFineTuneCoef(float coef) {
+    if (coef < 0.5 || coef >= 1.5) {
+        ESP_LOGE(TAG, "Too large or too small fine tuning coefficient. Ignoring.");
+        return;
+    }
     m_coef.store(coef);
     m_voltageMv.store(rawToMv(m_raw.load()));
 }
 
-float Battery::coef() const {
+float Battery::fineTuneCoef() const {
     return m_coef.load();
 }
 

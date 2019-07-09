@@ -24,8 +24,8 @@ public:
     static constexpr float BATT_DIVIDER = 10.0f / (82.0f + 10.0f); //!< Voltage divider ratio
 
 
-    void setCoef(float coef);
-    float coef() const;
+    void setFineTuneCoef(float coef); //!< Tunes battery measurement to compensate e.g. for voltage divider error. Default 1, expected to be 0.5 to 1.5.
+    float fineTuneCoef() const;
 
     uint32_t raw() const; //!< returns the raw value
     uint32_t pct() const; //!< returns current battery percentage
