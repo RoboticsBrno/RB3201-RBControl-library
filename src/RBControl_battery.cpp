@@ -1,23 +1,22 @@
 #include <driver/gpio.h>
 #include <driver/adc.h>
-#include <esp_adc_cal.h>
 #include <esp_log.h>
 
 #include "RBControl_battery.hpp"
 #include "RBControl_manager.hpp"
 #include "RBControl_piezo.hpp"
 
-#define BATTERY_ADC_SAMPLES 32
-#define BATTERY_DEFAULT_COEF 9.f
-
 #define TAG "RBControlBattery"
 
 namespace rb {
 
+const int DEFAULT_REF_VOLTAGE = 1100;
+const int BATTERY_ADC_SAMPLES = 32;
+
 Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander) : m_piezo(piezo), m_leds(leds), m_expander(expander) {
     m_warningOn = false;
     m_undervoltedCounter = 0;
-    m_coef = BATTERY_DEFAULT_COEF;
+    m_coef = 1.0f;
 }
 
 Battery::~Battery() {
@@ -26,7 +25,12 @@ Battery::~Battery() {
 
 void Battery::install() {
     adc1_config_width(ADC_WIDTH_12Bit);
-    adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_11);
+    adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_0);
+    esp_adc_cal_value_t calibType = esp_adc_cal_characterize(BATT_ADC_UNIT,
+        ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, DEFAULT_REF_VOLTAGE, &m_adcChars);
+    if ( calibType == ESP_ADC_CAL_VAL_DEFAULT_VREF ) {
+        ESP_LOGW(TAG, "No ADC calibration burned to the chip. Readings might be incorrect.");
+    }
 
     updateVoltage();
 
@@ -38,7 +42,7 @@ void Battery::install() {
 
 void Battery::setCoef(float coef) {
     m_coef.store(coef);
-    m_voltageMv.store(m_raw.load() * coef);
+    m_voltageMv.store(rawToMv(m_raw.load()));
 }
 
 float Battery::coef() const {
@@ -84,11 +88,11 @@ void Battery::updateVoltage() {
     }
     adc_reading /= BATTERY_ADC_SAMPLES;
 
-    const uint32_t voltage = adc_reading * m_coef.load();
+    const uint32_t voltage = rawToMv(adc_reading);
     m_raw.store(adc_reading);
     m_voltageMv.store(voltage);
 
-    ESP_LOGD(TAG, "Battery is at %u %u", adc_reading, voltage);
+    ESP_LOGD(TAG, "Battery is at %u mV (raw %u)", voltage, adc_reading);
 
     // Not connected to the battery
     if(voltage < 1000) {
@@ -102,13 +106,17 @@ void Battery::updateVoltage() {
     }
 
     if(voltage <= VOLTAGE_MIN) {
-        ESP_LOGE(TAG, "Battery is at %u/%umv", adc_reading, voltage);
+        ESP_LOGE(TAG, "Battery is at %umV (raw %u)", voltage, adc_reading);
         if(++m_undervoltedCounter >= 10) {
             shutdown();
         }
     } else if(m_undervoltedCounter != 0) {
         --m_undervoltedCounter;
     }
+}
+
+uint32_t Battery::rawToMv(uint32_t rawVal) {
+    return esp_adc_cal_raw_to_voltage(rawVal, &m_adcChars) * m_coef.load() / BATT_DIVIDER;
 }
 
 };

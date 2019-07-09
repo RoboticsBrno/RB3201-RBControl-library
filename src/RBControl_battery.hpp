@@ -2,6 +2,8 @@
 
 #include <atomic>
 
+#include <esp_adc_cal.h>
+
 #include "RBControl_piezo.hpp"
 #include "RBControl_leds.hpp"
 
@@ -16,9 +18,11 @@ class Battery {
     friend class Manager;
 
 public:
-    static const uint32_t VOLTAGE_MIN = 3300*2; //!< Minimal battery voltage, in mV, at which the robot shuts down
-    static const uint32_t VOLTAGE_MAX = 4200*2; //!< Maximal battery voltage, in mV
-    static const uint32_t VOLTAGE_WARNING = 3500*2; //!< The voltage at which alert triggers
+    static constexpr uint32_t VOLTAGE_MIN = 3300*2; //!< Minimal battery voltage, in mV, at which the robot shuts down
+    static constexpr uint32_t VOLTAGE_MAX = 4200*2; //!< Maximal battery voltage, in mV
+    static constexpr uint32_t VOLTAGE_WARNING = 3500*2; //!< The voltage at which alert triggers
+    static constexpr float BATT_DIVIDER = 10.0f / (82.0f + 10.0f); //!< Voltage divider ratio
+
 
     void setCoef(float coef);
     float coef() const;
@@ -38,6 +42,9 @@ private:
 
     void updateVoltage();
     void setWarning(bool on);
+    uint32_t rawToMv(uint32_t rawVal);
+
+    esp_adc_cal_characteristics_t m_adcChars;
 
     std::atomic<uint32_t> m_raw;
     std::atomic<uint32_t> m_voltageMv;
