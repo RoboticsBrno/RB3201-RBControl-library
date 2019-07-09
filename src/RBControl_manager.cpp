@@ -27,7 +27,9 @@ namespace rb {
 Manager::Manager() : m_queue(nullptr),
     m_motors_pwm {MOTORS_CHANNELS, {SERMOT}, RCKMOT, SCKMOT, -1, MOTORS_PWM_FREQUENCY},
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
-    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos() {
+    m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos(),
+    m_config("rb")
+{
 
 }
 

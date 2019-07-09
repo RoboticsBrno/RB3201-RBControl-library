@@ -15,6 +15,7 @@
 #include "RBControl_encoder.hpp"
 #include "RBControl_servo.hpp"
 #include "RBControl_motor.hpp"
+#include "RBControl_nvs.hpp"
 
 namespace rb {
 
@@ -88,6 +89,8 @@ public:
 
     Motor* motor(MotorId id) { return m_motors[static_cast<int>(id)]; }; //!< Get a motor instance
     MotorChangeBuilder setMotors(); //!< Create motor power change builder: {@link MotorChangeBuilder}.
+
+    Nvs& config() { return m_config; }
 
     /**
      * \brief Schedule callback to fire after period (in millisecond).
@@ -167,6 +170,7 @@ private:
     rb::Leds m_leds;
     rb::Battery m_battery;
     rb::SmartServoBus m_servos;
+    rb::Nvs m_config;
 
 #ifdef RB_DEBUG_MONITOR_TASKS
     bool printTasksDebugInfo();
