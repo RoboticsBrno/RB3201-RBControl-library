@@ -61,7 +61,7 @@ cache:
         - "~/.platformio"
 
 env:
-    - PLATFORMIO_CI_SRC=examples/logger 
+    - PLATFORMIO_CI_SRC=examples/logger
     - PLATFORMIO_CI_SRC=examples/motors
 
 install:
@@ -69,9 +69,9 @@ install:
     - platformio update
 
 script:
-    - platformio ci --lib="." --project-conf="./platformio.ini" 
+    - platformio ci --lib="." --project-conf="./platformio.ini"
     - doxygen Doxyfile
-    
+
 deploy:
   provider: pages
   skip_cleanup: true
@@ -79,3 +79,8 @@ deploy:
   github_token: $GH_REPO_TOKEN
   on:
     branch: master
+
+notifications:
+  email:
+    on_success: never
+    on_failure: always
