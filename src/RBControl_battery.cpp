@@ -27,12 +27,20 @@ Battery::~Battery() {
 void Battery::install(bool disableEmergencyShutdown) {
     m_emergencyShutdown = !disableEmergencyShutdown;
 
+    bool calibrated = false;
+    int vref = DEFAULT_REF_VOLTAGE;
+    auto& cfg = Manager::get().config();
+    if ( cfg.existsInt("vref")) {
+        vref = cfg.getInt("vref");
+        calibrated = true;
+    }
+
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_0);
     esp_adc_cal_value_t calibType = esp_adc_cal_characterize(BATT_ADC_UNIT,
-        ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, DEFAULT_REF_VOLTAGE, &m_adcChars);
-    if ( calibType == ESP_ADC_CAL_VAL_DEFAULT_VREF ) {
-        ESP_LOGW(TAG, "No ADC calibration burned to the chip. Readings might be incorrect.");
+        ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, vref, &m_adcChars);
+    if ( calibType == ESP_ADC_CAL_VAL_DEFAULT_VREF && !calibrated ) {
+        ESP_LOGE(TAG, "No ADC calibration. Readings might be incorrect.");
     }
 
     updateVoltage();
