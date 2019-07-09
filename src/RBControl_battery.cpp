@@ -15,6 +15,7 @@ const int BATTERY_ADC_SAMPLES = 32;
 
 Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander) : m_piezo(piezo), m_leds(leds), m_expander(expander) {
     m_warningOn = false;
+    m_emergencyShutdown = true;
     m_undervoltedCounter = 0;
     m_coef = 1.0f;
 }
@@ -23,7 +24,9 @@ Battery::~Battery() {
 
 }
 
-void Battery::install() {
+void Battery::install(bool disableEmergencyShutdown) {
+    m_emergencyShutdown = !disableEmergencyShutdown;
+
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_0);
     esp_adc_cal_value_t calibType = esp_adc_cal_characterize(BATT_ADC_UNIT,
@@ -57,7 +60,9 @@ void Battery::shutdown() {
     ESP_LOGW(TAG, "Shutting down.");
 
     m_expander.digitalWrite(EXPANDER_BOARD_POWER_ON, 0);
-    while(true) { } // wait for poweroff
+    // Shut down nearly everything and never wake up - necessary when ESP is
+    // powered from USB
+    esp_deep_sleep_start();
 }
 
 uint32_t Battery::raw() const {
@@ -112,7 +117,8 @@ void Battery::updateVoltage() {
     if(voltage <= VOLTAGE_MIN) {
         ESP_LOGE(TAG, "Battery is at %umV (raw %u)", voltage, adc_reading);
         if(++m_undervoltedCounter >= 10) {
-            shutdown();
+            if (m_emergencyShutdown)
+                shutdown();
         }
     } else if(m_undervoltedCounter != 0) {
         --m_undervoltedCounter;
