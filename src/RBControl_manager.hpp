@@ -87,7 +87,7 @@ public:
     Battery& battery() { return m_battery; } //!< Get the {@link Battery} interface
     Leds& leds() { return m_leds; } //!< Get the {@link Leds} helper
 
-    Motor* motor(MotorId id) { return m_motors[static_cast<int>(id)]; }; //!< Get a motor instance
+    Motor& motor(MotorId id) { return *m_motors[static_cast<int>(id)]; }; //!< Get a motor instance
     MotorChangeBuilder setMotors(); //!< Create motor power change builder: {@link MotorChangeBuilder}.
 
     Nvs& config() { return m_config; }
