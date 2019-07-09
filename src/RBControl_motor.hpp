@@ -32,6 +32,11 @@ public:
     void pwmMaxPercent(int8_t percent);
 
     /**
+     * \brief Get current maximum PWM percent value.
+     */
+    int8_t pwmMaxPercent() const { return m_pwm_max_percent; }
+
+    /**
      * \brief Stop motor.
      */
     void stop();
