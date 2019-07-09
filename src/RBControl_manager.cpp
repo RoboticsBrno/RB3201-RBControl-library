@@ -66,9 +66,7 @@ void Manager::install(ManagerInstallFlags flags) {
         m_piezo.install();
     }
 
-    if(!(flags & MAN_DISABLE_BATTERY_MANAGEMENT)) {
-        m_battery.install();
-    }
+    m_battery.install(flags & MAN_DISABLE_BATTERY_MANAGEMENT);
 
     TaskHandle_t task;
     xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 5, &task);

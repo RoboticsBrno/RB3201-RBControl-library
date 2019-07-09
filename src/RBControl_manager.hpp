@@ -25,7 +25,7 @@ enum ManagerInstallFlags {
     MAN_NONE                                = 0,
     MAN_DISABLE_MOTOR_FAILSAFE              = (1 << 0), //!< Disables automatic motor failsafe, which stops the motors
                                                         //!< after 300ms of no set motor power calls.
-    MAN_DISABLE_BATTERY_MANAGEMENT          = (1 << 1), //!< Disables the battery voltage auto-measurement and
+    MAN_DISABLE_BATTERY_MANAGEMENT          = (1 << 1), //!< Disables the battery voltage
                                                         //!< auto-shutdown on low battery voltage.
     MAN_DISABLE_PIEZO                       = (1 << 2), //!< Do not initialize piezo on pins IO25/IO33, keeps
                                                         //!< the pins free for other functions.

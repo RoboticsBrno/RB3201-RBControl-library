@@ -32,13 +32,12 @@ public:
     uint32_t voltageMv() const; //!< returns current battery voltage
 
     void shutdown(); //!< shuts the robot down
-
 private:
     Battery(Piezo& piezo, Leds& leds, Adafruit_MCP23017& expander);
     Battery(const Battery&) = delete;
     ~Battery();
 
-    void install();
+    void install(bool disableEmergencyShutdown = false);
 
     void updateVoltage();
     void setWarning(bool on);
@@ -51,6 +50,7 @@ private:
     std::atomic<float> m_coef;
 
     bool m_warningOn;
+    bool m_emergencyShutdown;
     uint8_t m_undervoltedCounter;
     Piezo& m_piezo;
     Leds& m_leds;
