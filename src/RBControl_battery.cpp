@@ -53,7 +53,9 @@ void Battery::shutdown() {
     ESP_LOGW(TAG, "Shutting down.");
 
     m_expander.digitalWrite(EXPANDER_BOARD_POWER_ON, 0);
-    while(true) { } // wait for poweroff
+    // Shut down nearly everything and never wake up - necessary when ESP is
+    // powered from USB
+    esp_deep_sleep_start();
 }
 
 uint32_t Battery::raw() const {
