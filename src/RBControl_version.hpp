@@ -4,6 +4,6 @@
 #define RB3201_RBControl
 #define RBControl
 
-#define RB3201_MAJOR 5
-#define RB3201_MINOR 2
+#define RB3201_MAJOR 6
+#define RB3201_MINOR 0
 #define RB3201_PATCH 0
