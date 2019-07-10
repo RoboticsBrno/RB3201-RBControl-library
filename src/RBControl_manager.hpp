@@ -87,7 +87,7 @@ public:
     Battery& battery() { return m_battery; } //!< Get the {@link Battery} interface
     Leds& leds() { return m_leds; } //!< Get the {@link Leds} helper
 
-    Motor* motor(MotorId id) { return m_motors[static_cast<int>(id)]; }; //!< Get a motor instance
+    Motor& motor(MotorId id) { return *m_motors[static_cast<int>(id)]; }; //!< Get a motor instance
     MotorChangeBuilder setMotors(); //!< Create motor power change builder: {@link MotorChangeBuilder}.
 
     Nvs& config() { return m_config; }
@@ -162,7 +162,7 @@ private:
     std::recursive_mutex m_timers_mutex;
 
     struct timeval m_motors_last_set;
-    std::vector<Motor*> m_motors;
+    std::vector<std::unique_ptr<Motor>> m_motors;
     SerialPWM m_motors_pwm;
 
     Adafruit_MCP23017 m_expander;

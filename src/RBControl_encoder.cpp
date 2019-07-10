@@ -271,7 +271,7 @@ void Encoder::driveToValue(int32_t positionAbsolute, uint8_t power, std::functio
     m_target_callback = callback;
     m_target = positionAbsolute;
     m_target_direction = (positionAbsolute > current ? 1 : -1);
-    m_manager.motor(m_id)->power(static_cast<int8_t>(power) * m_target_direction);
+    m_manager.motor(m_id).power(static_cast<int8_t>(power) * m_target_direction);
     m_time_mutex.unlock();
 }
 

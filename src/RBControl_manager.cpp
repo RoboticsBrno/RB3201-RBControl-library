@@ -37,9 +37,6 @@ Manager::~Manager() {
     if(m_queue) {
         vQueueDelete(m_queue);
     }
-
-    for(size_t i = 0; i < m_motors.size(); ++i)
-        delete m_motors[i];
 }
 
 void Manager::install(ManagerInstallFlags flags) {
@@ -164,7 +161,7 @@ void Manager::processEvent(struct Manager::Event *ev) {
         auto data = (std::vector<EventMotorsData>*)ev->data.motors;
         bool changed = false;
         for(const auto& m : *data) {
-            if((m_motors[static_cast<int>(m.id)]->*m.setter_func)(m.value)) {
+            if((m_motors[static_cast<int>(m.id)].get()->*m.setter_func)(m.value)) {
                 changed = true;
             }
         }
