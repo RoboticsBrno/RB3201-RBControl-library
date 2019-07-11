@@ -25,7 +25,7 @@ void Piezo::install() {
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
 
-    gpio_set_level(PIEZO_B, 1);
+    gpio_set_level(PIEZO_B, 0);
 
     ledc_timer_config_t ledc_timer;
     ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;           // timer mode
@@ -54,6 +54,8 @@ void Piezo::install() {
 void Piezo::setTone(uint32_t freq) {
     if(!m_installed)
         return;
+
+    gpio_set_level(PIEZO_B, freq != 0);
 
     if(freq != 0) {
         uint8_t bit_num = 10;
