@@ -119,14 +119,14 @@ void WiFi::startAp(const char *ssid, const char *pass, uint8_t channel) {
 
     wifi_config_t cfg = { 0 };
 
-    if(strlen(ssid) >= 2 && strlen(pass) >= 8) {
-        snprintf((char*)cfg.ap.ssid, 32, "%s", ssid);
+    if(strlen(pass) >= 8) {
         snprintf((char*)cfg.ap.password, 64, "%s", pass);
         cfg.ap.authmode = WIFI_AUTH_WPA2_PSK;
     } else {
-        ESP_LOGE(TAG, "The WiFi ssid or password is too short, 8 characters required, leaving the WiFI open!");
+        ESP_LOGE(TAG, "The WiFi password is too short, 8 characters required, leaving the WiFI open!");
         cfg.ap.authmode = WIFI_AUTH_OPEN;
     }
+    snprintf((char*)cfg.ap.ssid, 32, "%s", ssid);
     cfg.ap.channel = channel;
     cfg.ap.beacon_interval = 400;
     cfg.ap.max_connection = 4;
