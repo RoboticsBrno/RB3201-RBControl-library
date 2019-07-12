@@ -67,6 +67,8 @@ float Battery::fineTuneCoef() const {
 void Battery::shutdown() {
     ESP_LOGW(TAG, "Shutting down.");
 
+    vTaskDelay(pdMS_TO_TICKS(500));
+
     m_expander.digitalWrite(EXPANDER_BOARD_POWER_ON, 0);
     // Shut down nearly everything and never wake up - necessary when ESP is
     // powered from USB
@@ -112,7 +114,7 @@ void Battery::updateVoltage() {
     ESP_LOGD(TAG, "Battery is at %u mV (raw %u)", voltage, adc_reading);
 
     // Not connected to the battery
-    if(voltage < 1000) {
+    if(voltage < 3000) {
         return;
     }
 
