@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "esp_event_loop.h"
 #include "nvs_flash.h"
+#include <string.h>
 
 #include "RBControl_wifi.hpp"
 
@@ -117,10 +118,16 @@ void WiFi::startAp(const char *ssid, const char *pass, uint8_t channel) {
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
 
     wifi_config_t cfg = { 0 };
-    snprintf((char*)cfg.ap.ssid, 32, "%s", ssid);
-    snprintf((char*)cfg.ap.password, 64, "%s", pass);
+
+    if(strlen(ssid) >= 2 && strlen(pass) >= 8) {
+        snprintf((char*)cfg.ap.ssid, 32, "%s", ssid);
+        snprintf((char*)cfg.ap.password, 64, "%s", pass);
+        cfg.ap.authmode = WIFI_AUTH_WPA2_PSK;
+    } else {
+        ESP_LOGE(TAG, "The WiFi ssid or password is too short, 8 characters required, leaving the WiFI open!");
+        cfg.ap.authmode = WIFI_AUTH_OPEN;
+    }
     cfg.ap.channel = channel;
-    cfg.ap.authmode = WIFI_AUTH_WPA2_PSK;
     cfg.ap.beacon_interval = 400;
     cfg.ap.max_connection = 4;
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &cfg));
