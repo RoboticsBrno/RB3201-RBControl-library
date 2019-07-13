@@ -187,8 +187,8 @@ bool SmartServoBus::regulateServo(QueueHandle_t responseQueue, size_t id, uint32
                 const int val_int = (val / 1000.f) * 24000.f;
                 const int diff = val_int - int(s.current);
                 if(abs(diff) > 300) {
-                    if(++s.auto_stop_counter > 3) {
-                        s.target = val_int + (diff > 0 ? -300 : 300);
+                    if(++s.auto_stop_counter > 5) {
+                        s.target = val_int + (diff > 0 ? -200 : 200);
                         s.auto_stop_counter = 0;
                     }
                 } else if(s.auto_stop_counter != 0) {
