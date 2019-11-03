@@ -139,7 +139,7 @@ void Encoder::pcnt_init(pcnt_unit_t pcntUnit, gpio_num_t GPIO_A, gpio_num_t GPIO
         PCNT_MODE_REVERSE,  //hctrl_mode   // Reverse counting direction if low
         // What to do on the positive / negative edge of pulse input?
         PCNT_COUNT_INC, //pos_mode   // Count up on the positive edge
-        PCNT_COUNT_DEC, //neg_mode   // Keep the counter value on the negative edge
+        PCNT_COUNT_DEC, //neg_mode   // Keep the counter value on the negative edge  --TODO: is this correct? comment says keep, code says decrease
         // Set the maximum and minimum limit values to watch
         PCNT_H_LIM_VAL, //counter_h_lim
         PCNT_L_LIM_VAL, //counter_l_lim
