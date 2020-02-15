@@ -68,6 +68,8 @@ public:
     const Definition& definition() const { return m_def; }
     const std::vector<Bone>& bones() const { return m_bones; }
 
+    bool syncBonesWithServos();
+
 private:
     typedef float AngleType;
 

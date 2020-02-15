@@ -136,6 +136,27 @@ void Arm::setServos(float speed) {
     }
 }
 
+bool Arm::syncBonesWithServos() {
+    auto& servos = Manager::get().servoBus();
+
+    Bone *prev = nullptr;
+    for(size_t i = 0; i < m_bones.size(); ++i) {
+        auto *bone = &m_bones[i];
+        auto pos = servos.posOffline(bone->def.servo_id);
+        if(pos.isNaN())
+            return false;
+
+        if(prev == nullptr) {
+            bone->relAngle = bone->def.calcAbsAng(pos);
+        } else {
+            bone->relAngle =  Arm::clamp(bone->def.calcAbsAng(pos) - prev->absAngle);
+        }
+        bone->updatePos(prev);
+        prev = bone;
+    }
+    return true;
+}
+
 bool Arm::solve(Arm::CoordType target_x, Arm::CoordType target_y) {
     bool modified = false;
     bool result = false;
