@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <esp_system.h>
 #include <nvs.h>
 #include <nvs_flash.h>
@@ -15,6 +17,10 @@ public:
     bool existsInt(const char *key);
     int getInt(const char *key);
     void writeInt(const char *key, int value);
+
+    bool existsString(const char *key);
+    std::string getString(const char *key);
+    void writeString(const char *key, const std::string& value);
 
     void commit();
 private:

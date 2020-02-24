@@ -1,3 +1,6 @@
+
+#include <vector>
+
 #include "RBControl_nvs.hpp"
 
 namespace rb {
@@ -38,6 +41,25 @@ int Nvs::getInt(const char *key) {
 
 void Nvs::writeInt(const char *key, int value) {
     ESP_ERROR_CHECK(nvs_set_i32(m_handle, key, value));
+    m_dirty = true;
+}
+
+bool Nvs::existsString(const char *key) {
+    size_t len;
+    return nvs_get_str(m_handle, key, NULL, &len) == ESP_OK;
+}
+
+std::string Nvs::getString(const char *key) {
+    size_t len;
+    ESP_ERROR_CHECK(nvs_get_str(m_handle, key, NULL, &len));
+
+    std::vector<char> res(len, ' ');
+    ESP_ERROR_CHECK(nvs_get_str(m_handle, key, res.data(), &len));
+    return std::string(res.data());
+}
+
+void Nvs::writeString(const char *key, const std::string& value) {
+    ESP_ERROR_CHECK(nvs_set_str(m_handle, key, value.c_str()));
     m_dirty = true;
 }
 
