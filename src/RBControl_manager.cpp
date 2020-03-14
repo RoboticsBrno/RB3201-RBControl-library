@@ -28,7 +28,7 @@ Manager::Manager() : m_queue(nullptr),
     m_motors_pwm {MOTORS_CHANNELS, {SERMOT}, RCKMOT, SCKMOT, -1, MOTORS_PWM_FREQUENCY},
     m_expander(I2C_ADDR_EXPANDER, I2C_NUM_0, I2C_MASTER_SDA, I2C_MASTER_SCL),
     m_piezo(), m_leds(m_expander), m_battery(m_piezo, m_leds, m_expander), m_servos(),
-    m_config("rb")
+    m_config("rb"), m_timers(*this)
 {
 
 }
@@ -68,7 +68,7 @@ void Manager::install(ManagerInstallFlags flags) {
     m_battery.install(flags & MAN_DISABLE_BATTERY_MANAGEMENT);
 
     TaskHandle_t task;
-    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 4096, this, 5, &task);
+    xTaskCreate(&Manager::consumerRoutineTrampoline, "rbmanager_loop", 3072, this, 5, &task);
     monitorTask(task);
 
 #ifdef RB_DEBUG_MONITOR_TASKS
@@ -124,34 +124,10 @@ void Manager::consumerRoutineTrampoline(void *cookie) {
 
 void Manager::consumerRoutine() {
     struct Event ev;
-    struct timeval tv_last, tv_now;
-    gettimeofday(&tv_last, NULL);
-
     while(true) {
-        while(xQueueReceive(m_queue, &ev, EVENT_LOOP_PERIOD) == pdTRUE) {
+        while(xQueueReceive(m_queue, &ev, portMAX_DELAY) == pdTRUE) {
             processEvent(&ev);
         }
-
-        gettimeofday(&tv_now, NULL);
-        const uint32_t diff = diff_ms(tv_now, tv_last);
-        tv_last = tv_now;
-
-        m_timers_mutex.lock();
-        for(auto itr = m_timers.begin(); itr != m_timers.end(); ) {
-            if((*itr).remaining <= diff) {
-                if(!(*itr).callback() || (*itr).period == 0) {
-                    itr = m_timers.erase(itr);
-                    continue;
-                } else {
-                    (*itr).remaining = (*itr).period;
-                }
-            } else {
-                (*itr).remaining -= diff;
-            }
-
-            ++itr;
-        }
-        m_timers_mutex.unlock();
     }
 }
 
@@ -194,16 +170,6 @@ void Manager::processEvent(struct Manager::Event *ev) {
         break;
     }
     }
-}
-
-void Manager::schedule(uint32_t period_ms, std::function<bool()> callback) {
-    m_timers_mutex.lock();
-    m_timers.emplace_back(Timer {
-        .remaining = period_ms,
-        .period = period_ms,
-        .callback = callback,
-    });
-    m_timers_mutex.unlock();
 }
 
 bool Manager::motorsFailSafe() {

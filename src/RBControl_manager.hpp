@@ -16,6 +16,7 @@
 #include "RBControl_servo.hpp"
 #include "RBControl_motor.hpp"
 #include "RBControl_nvs.hpp"
+#include "RBControl_timers.hpp"
 
 namespace rb {
 
@@ -100,7 +101,11 @@ public:
      * \param period_ms is period in which will be the schedule callback fired
      * \param callback is a function which will be schedule with the set period.
      */
-    void schedule(uint32_t period_ms, std::function<bool()> callback);
+    void schedule(uint32_t period_ms, std::function<bool()> callback) {
+        m_timers.schedule(period_ms, callback);
+    }
+
+    Timers& timers() { return m_timers; }
 
     // internal api to monitor RBControl tasks
     void monitorTask(TaskHandle_t task);
@@ -140,12 +145,6 @@ private:
         } data;
     };
 
-    struct Timer {
-        uint32_t remaining;
-        uint32_t period;
-        std::function<bool()> callback;
-    };
-
     void queue(const Event *event, bool toFront = false);
     bool queueFromIsr(const Event *event, bool toFront = false);
     static void consumerRoutineTrampoline(void *cookie);
@@ -156,10 +155,14 @@ private:
 
     void setupExpander();
 
-    QueueHandle_t m_queue;
+#ifdef RB_DEBUG_MONITOR_TASKS
+    bool printTasksDebugInfo();
 
-    std::list<Timer> m_timers;
-    std::recursive_mutex m_timers_mutex;
+    std::vector<TaskHandle_t> m_tasks;
+    std::mutex m_tasks_mutex;
+#endif
+
+    QueueHandle_t m_queue;
 
     struct timeval m_motors_last_set;
     std::vector<std::unique_ptr<Motor>> m_motors;
@@ -171,13 +174,7 @@ private:
     rb::Battery m_battery;
     rb::SmartServoBus m_servos;
     rb::Nvs m_config;
-
-#ifdef RB_DEBUG_MONITOR_TASKS
-    bool printTasksDebugInfo();
-
-    std::vector<TaskHandle_t> m_tasks;
-    std::mutex m_tasks_mutex;
-#endif
+    rb::Timers m_timers;
 };
 
 /**
