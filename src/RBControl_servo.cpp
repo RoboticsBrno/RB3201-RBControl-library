@@ -1,11 +1,11 @@
+#include "RBControl_servo.hpp"
+#include "RBControl_manager.hpp"
 #include <algorithm>
 #include <chrono>
-#include <math.h>
+#include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <esp_log.h>
-#include "RBControl_manager.hpp"
-#include "RBControl_servo.hpp"
+#include <math.h>
 
 #include "half_duplex_uart.h"
 
@@ -17,9 +17,8 @@ namespace rb {
 SmartServoBus::SmartServoBus() {
 }
 
-void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin)
-{
-    if(!m_servos.empty() || servo_count == 0)
+void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin) {
+    if (!m_servos.empty() || servo_count == 0)
         return;
 
     m_servos.resize(servo_count);
@@ -37,17 +36,17 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
     Manager::get().monitorTask(task);
 
     Angle val;
-    for(uint8_t i = 0; i < servo_count; ++i) {
-        for(int x = 0; x < 3; ++x) {
+    for (uint8_t i = 0; i < servo_count; ++i) {
+        for (int x = 0; x < 3; ++x) {
             val = pos(i);
-            if(!val.isNaN()) {
+            if (!val.isNaN()) {
                 break;
             } else {
-                ESP_LOGW(TAG, "failed to read servo %d pos, attempt %d", i, x+1);
+                ESP_LOGW(TAG, "failed to read servo %d pos, attempt %d", i, x + 1);
             }
         }
 
-        if(val.isNaN()) {
+        if (val.isNaN()) {
             ESP_LOGE(TAG, "failed to read position from servo %d, it will not work!", i);
             continue;
         }
@@ -69,7 +68,7 @@ void SmartServoBus::setId(uint8_t newId, uint8_t destId) {
 uint8_t SmartServoBus::getId(uint8_t destId) {
     struct rx_response resp;
     sendAndReceive(lw::Packet::getId(destId), resp);
-    if(resp.size != 7)
+    if (resp.size != 7)
         return 0xFF;
     return resp.data[5];
 }
@@ -81,9 +80,9 @@ void SmartServoBus::set(uint8_t id, Angle ang, float speed, float speed_raise) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
     auto& si = m_servos[id];
-    if(!si.hasValidCurrent()) {
+    if (!si.hasValidCurrent()) {
         const auto cur = pos(id);
-        if(cur.isNaN()) {
+        if (cur.isNaN()) {
             ESP_LOGE(TAG, "failed to get servo %d position, can't move it!", int(id));
             return;
         }
@@ -92,10 +91,10 @@ void SmartServoBus::set(uint8_t id, Angle ang, float speed, float speed_raise) {
         si.target = deg_val;
     }
 
-    if(si.current == angle)
+    if (si.current == angle)
         return;
 
-    if((si.current > si.target) != (si.current > angle)) {
+    if ((si.current > si.target) != (si.current > angle)) {
         si.speed_coef = 0.f;
     }
 
@@ -109,7 +108,7 @@ Angle SmartServoBus::pos(uint8_t id) {
 
     struct rx_response resp;
     sendAndReceive(pkt, resp, true);
-    if(resp.size != 0x08) {
+    if (resp.size != 0x08) {
         return Angle::nan();
     }
 
@@ -121,13 +120,13 @@ Angle SmartServoBus::pos(uint8_t id) {
 
 Angle SmartServoBus::posOffline(uint8_t id) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    auto &s = m_servos[id];
-    if(s.current == 0xFFFF)
+    auto& s = m_servos[id];
+    if (s.current == 0xFFFF)
         return Angle::nan();
-    return Angle::deg(Angle::_T(s.current)/100.f);
+    return Angle::deg(Angle::_T(s.current) / 100.f);
 }
 
-void SmartServoBus::limit(uint8_t id,  Angle bottom, Angle top) {
+void SmartServoBus::limit(uint8_t id, Angle bottom, Angle top) {
     auto pkt = lw::Servo::limit(id, bottom, top);
     send(pkt);
 }
@@ -138,7 +137,7 @@ void SmartServoBus::setAutoStop(uint8_t id, bool enable) {
     m_mutex.unlock();
 }
 
-void SmartServoBus::regulatorRoutineTrampoline(void *cookie) {
+void SmartServoBus::regulatorRoutineTrampoline(void* cookie) {
     ((SmartServoBus*)cookie)->regulatorRoutine();
 }
 
@@ -151,19 +150,19 @@ void SmartServoBus::regulatorRoutine() {
     const auto ticksPerIter = MS_TO_TICKS(msPerIter);
 
     auto queue = xQueueCreate(1, sizeof(struct rx_response));
-    while(true) {
+    while (true) {
         const auto tm_iter_start = xTaskGetTickCount();
-        for(size_t i = 0; i < servos_cnt; ++i) {
+        for (size_t i = 0; i < servos_cnt; ++i) {
             const auto tm_servo_start = xTaskGetTickCount();
             regulateServo(queue, i, msPerIter);
             const auto diff = xTaskGetTickCount() - tm_servo_start;
-            if(diff < ticksPerServo) {
+            if (diff < ticksPerServo) {
                 vTaskDelay(ticksPerServo - diff);
             }
         }
 
         const auto diff = xTaskGetTickCount() - tm_iter_start;
-        if(diff < ticksPerIter) {
+        if (diff < ticksPerIter) {
             vTaskDelay(ticksPerIter - diff);
         }
     }
@@ -177,39 +176,38 @@ bool SmartServoBus::regulateServo(QueueHandle_t responseQueue, size_t id, uint32
     {
         std::lock_guard<std::mutex> lock(m_mutex);
 
-        if(s.auto_stop)
-        {
+        if (s.auto_stop) {
             lw::Packet pos_req(id, lw::Command::SERVO_POS_READ);
             send(pos_req, responseQueue, true);
             xQueueReceive(responseQueue, &resp, portMAX_DELAY);
-            if(resp.size == 0x08) {
+            if (resp.size == 0x08) {
                 const float val = (float)((resp.data[6] << 8) | resp.data[5]);
                 const int val_int = (val / 1000.f) * 24000.f;
                 const int diff = val_int - int(s.current);
-                if(abs(diff) > 300) {
-                    if(++s.auto_stop_counter > 5) {
+                if (abs(diff) > 300) {
+                    if (++s.auto_stop_counter > 5) {
                         s.target = val_int + (diff > 0 ? -200 : 200);
                         s.auto_stop_counter = 0;
                     }
-                } else if(s.auto_stop_counter != 0) {
+                } else if (s.auto_stop_counter != 0) {
                     s.auto_stop_counter = 0;
                 }
             }
         }
 
-        if(s.current == s.target) {
+        if (s.current == s.target) {
             return false;
         }
 
         float speed = s.speed_target;
-        if(s.speed_coef < 1.f) {
+        if (s.speed_coef < 1.f) {
             s.speed_coef = std::min(1.f, s.speed_coef + (s.speed_raise * timeSliceMs));
             speed *= (s.speed_coef * s.speed_coef);
         }
 
         int32_t dist = abs(int32_t(s.target) - int32_t(s.current));
         dist = std::max(1, std::min(dist, int32_t(speed * timeSliceMs)));
-        if(dist > 0) {
+        if (dist > 0) {
             if (s.target < s.current) {
                 s.current -= dist;
             } else {
@@ -217,23 +215,23 @@ bool SmartServoBus::regulateServo(QueueHandle_t responseQueue, size_t id, uint32
             }
         }
 
-        if(dist <= 0 || s.current == s.target) {
+        if (dist <= 0 || s.current == s.target) {
             s.current = s.target;
             s.speed_coef = 0.f;
         }
-        move_pos_deg = float(s.current)/100.f;
+        move_pos_deg = float(s.current) / 100.f;
     }
 
-    const auto pkt = lw::Servo::move(id, Angle::deg(move_pos_deg), std::chrono::milliseconds(timeSliceMs-5));
+    const auto pkt = lw::Servo::move(id, Angle::deg(move_pos_deg), std::chrono::milliseconds(timeSliceMs - 5));
     send(pkt, responseQueue, false, true);
 
-    if(xQueueReceive(responseQueue, &resp, 500 / portTICK_PERIOD_MS) != pdTRUE) {
+    if (xQueueReceive(responseQueue, &resp, 500 / portTICK_PERIOD_MS) != pdTRUE) {
         ESP_LOGE(TAG, "Response to move packet not received!");
     }
     return true;
 }
 
-void SmartServoBus::uartRoutineTrampoline(void *cookie) {
+void SmartServoBus::uartRoutineTrampoline(void* cookie) {
     ((SmartServoBus*)cookie)->uartRoutine();
 }
 
@@ -246,7 +244,7 @@ void SmartServoBus::uartRoutine() {
             .stop_bits = UART_STOP_BITS_1,
             .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         };
-        ESP_ERROR_CHECK(half_duplex::uart_param_config( m_uart, &uart_config ));
+        ESP_ERROR_CHECK(half_duplex::uart_param_config(m_uart, &uart_config));
         ESP_ERROR_CHECK(half_duplex::uart_driver_install(m_uart, 256, 0, 0, NULL, 0));
         half_duplex::uart_set_half_duplex_pin(m_uart, m_uart_pin);
     }
@@ -255,12 +253,12 @@ void SmartServoBus::uartRoutine() {
     struct rx_response resp;
     auto tm_last = xTaskGetTickCount();
     constexpr auto min_delay = MS_TO_TICKS(15);
-    while(true) {
-        if(xQueueReceive(m_uart_queue, &req, portMAX_DELAY) != pdTRUE)
+    while (true) {
+        if (xQueueReceive(m_uart_queue, &req, portMAX_DELAY) != pdTRUE)
             continue;
 
         const auto diff = xTaskGetTickCount() - tm_last;
-        if(diff < min_delay) {
+        if (diff < min_delay) {
             vTaskDelay(min_delay - diff);
         }
 
@@ -268,51 +266,51 @@ void SmartServoBus::uartRoutine() {
         tm_last = xTaskGetTickCount();
         req.size = uartReceive((uint8_t*)req.data, sizeof(req.data));
 
-        if(req.size != 0 && req.expect_response) {
+        if (req.size != 0 && req.expect_response) {
             resp.size = uartReceive(resp.data, sizeof(resp.data));
         } else {
             resp.size = 0;
         }
 
-        if(req.responseQueue) {
+        if (req.responseQueue) {
             xQueueSend(req.responseQueue, &resp, 300 / portTICK_PERIOD_MS);
         }
     }
 }
 
-size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
+size_t SmartServoBus::uartReceive(uint8_t* buff, size_t bufcap) {
     constexpr TickType_t wait_period = MS_TO_TICKS(4);
     constexpr TickType_t timeout = MS_TO_TICKS(20);
 
     size_t bufsize = 0;
 
-    while(true) {
+    while (true) {
         size_t avail = 0;
         size_t need = 0;
         const size_t oldsize = bufsize;
-        switch(oldsize) {
-            case 0:
-            case 1:
-                need = 1;
-                break;
-            case 2:
-                need = 3;
-                break;
-            case 5:
-                need = buff[3]-2;
-                break;
-            default:
-                return bufsize;
+        switch (oldsize) {
+        case 0:
+        case 1:
+            need = 1;
+            break;
+        case 2:
+            need = 3;
+            break;
+        case 5:
+            need = buff[3] - 2;
+            break;
+        default:
+            return bufsize;
         }
 
-        if(need + oldsize > bufcap) {
+        if (need + oldsize > bufcap) {
             ESP_LOGE(TAG, "invalid packet size received: %d.\n", (int)buff[3]);
             return 0;
         }
 
         TickType_t waiting = 0;
-        while(half_duplex::uart_get_buffered_data_len(m_uart, &avail) != ESP_OK || avail < need) {
-            if(waiting >= timeout) {
+        while (half_duplex::uart_get_buffered_data_len(m_uart, &avail) != ESP_OK || avail < need) {
+            if (waiting >= timeout) {
                 ESP_LOGE(TAG, "timeout when waiting for data!");
                 return 0;
             }
@@ -321,14 +319,14 @@ size_t SmartServoBus::uartReceive(uint8_t *buff, size_t bufcap) {
         }
 
         int res = half_duplex::uart_read_bytes(m_uart, buff + oldsize, need, 0);
-        if(res < 0 || ((size_t)res) != need) {
+        if (res < 0 || ((size_t)res) != need) {
             ESP_LOGE(TAG, "invalid packet read: %d, aborting.\n", res);
             abort();
             return 0;
         }
         bufsize += need;
 
-        if(oldsize < 2 && buff[oldsize] != 0x55)
+        if (oldsize < 2 && buff[oldsize] != 0x55)
             bufsize = 0;
     }
     return 0;
@@ -340,12 +338,12 @@ void SmartServoBus::send(const lw::Packet& pkt, QueueHandle_t responseQueue, boo
     req.expect_response = expect_response;
     req.responseQueue = responseQueue;
 
-    if(sizeof(req.data) < pkt._data.size()) {
+    if (sizeof(req.data) < pkt._data.size()) {
         ESP_LOGE(TAG, "packet is too big, %u > %u", pkt._data.size(), sizeof(req.data));
         abort();
     }
     memcpy(req.data, pkt._data.data(), pkt._data.size());
-    if(to_front) {
+    if (to_front) {
         xQueueSendToFront(m_uart_queue, &req, portMAX_DELAY);
     } else {
         xQueueSendToBack(m_uart_queue, &req, portMAX_DELAY);

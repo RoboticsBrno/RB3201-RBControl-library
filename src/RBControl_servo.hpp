@@ -1,13 +1,13 @@
 #pragma once
 
-#include <vector>
 #include <mutex>
+#include <vector>
 
 #include <driver/gpio.h>
 #include <driver/pcnt.h>
 
-#include "RBControl_util.hpp"
 #include "RBControl_angle.hpp"
+#include "RBControl_util.hpp"
 #include "lx16a.hpp"
 
 namespace rb {
@@ -17,12 +17,13 @@ class Encoder;
 
 class SmartServoBus {
     friend class Manager;
+
 public:
     SmartServoBus();
     ~SmartServoBus() {}
 
     void set(uint8_t id, Angle ang, float speed = 180.f, float speed_raise = 0.0015f);
-    void limit(uint8_t id,  Angle bottom, Angle top);
+    void limit(uint8_t id, Angle bottom, Angle top);
 
     Angle pos(uint8_t id);
     Angle posOffline(uint8_t id);
@@ -37,13 +38,13 @@ private:
 
     void install(uint8_t servo_count, uart_port_t uart, gpio_num_t pin);
 
-    static void regulatorRoutineTrampoline(void *cookie);
+    static void regulatorRoutineTrampoline(void* cookie);
     void regulatorRoutine();
     bool regulateServo(QueueHandle_t responseQueue, size_t id, uint32_t timeSliceMs);
 
-    static void uartRoutineTrampoline(void *cookie);
+    static void uartRoutineTrampoline(void* cookie);
     void uartRoutine();
-    size_t uartReceive(uint8_t *buff, size_t bufcap);
+    size_t uartReceive(uint8_t* buff, size_t bufcap);
 
     struct servo_info {
         servo_info() {

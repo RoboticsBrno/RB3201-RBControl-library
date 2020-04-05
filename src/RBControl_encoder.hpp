@@ -6,17 +6,18 @@
 #include <driver/gpio.h>
 #include <driver/pcnt.h>
 
-#include "RBControl_util.hpp"
 #include "RBControl_pinout.hpp"
+#include "RBControl_util.hpp"
 
 namespace rb {
 
 class Encoder;
 class Manager;
 
-class Encoder{
+class Encoder {
     friend class Manager;
     friend class Motor;
+
 public:
     ~Encoder();
 
@@ -53,6 +54,7 @@ public:
      * \return The number of counted edges after one second.
      */
     float speed();
+
 private:
     Encoder(Manager& man, MotorId id);
     Encoder(const Encoder&) = delete;
@@ -82,14 +84,14 @@ private:
 /// @private
 class PcntInterruptHandler {
 public:
-    static PcntInterruptHandler& get(Manager *manager);
+    static PcntInterruptHandler& get(Manager* manager);
 
     void enable(int index);
 
 private:
-    PcntInterruptHandler(Manager *manager);
+    PcntInterruptHandler(Manager* manager);
     ~PcntInterruptHandler();
-    static void IRAM_ATTR isrHandler(void *cookie);
+    static void IRAM_ATTR isrHandler(void* cookie);
 };
 
 } // namespace rb

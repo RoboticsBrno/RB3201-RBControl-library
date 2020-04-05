@@ -1,22 +1,22 @@
-#include <esp_log.h>
 #include <driver/gpio.h>
 #include <driver/pcnt.h>
 #include <driver/periph_ctrl.h>
+#include <esp_log.h>
 
 #include "RBControl_encoder.hpp"
-#include "RBControl_pinout.hpp"
 #include "RBControl_manager.hpp"
+#include "RBControl_pinout.hpp"
 
 #define TAG "RbEncoder"
 
-#define ENC_COUNT           static_cast<int>(MotorId::MAX)
-#define PCNT_H_LIM_VAL      32767
-#define PCNT_L_LIM_VAL     (-32768)
-#define INC_PER_REVOLUTION  2       //PCNT increments per 1 engine revolution
+#define ENC_COUNT static_cast<int>(MotorId::MAX)
+#define PCNT_H_LIM_VAL 32767
+#define PCNT_L_LIM_VAL (-32768)
+#define INC_PER_REVOLUTION 2 //PCNT increments per 1 engine revolution
 #define ESP_INTR_FLAG_DEFAULT 0
-#define ENC_DEBOUNCE_US 20          //[microseconds]
-#define MAX_ENGINE_PERIOD_US 100000    //engine period limit separating zero result [us]
-#define MIN_ENGINE_PERIOD_US 1000      //engine period limit separating zero results [us]
+#define ENC_DEBOUNCE_US 20 //[microseconds]
+#define MAX_ENGINE_PERIOD_US 100000 //engine period limit separating zero result [us]
+#define MIN_ENGINE_PERIOD_US 1000 //engine period limit separating zero results [us]
 
 namespace rb {
 
@@ -31,23 +31,31 @@ static const pcnt_unit_t PCNT_UNITS[ENC_COUNT] = {
     PCNT_UNIT_7
 };
 
-const gpio_num_t ENCODER_PINS[ENC_COUNT*2] = {
-    ENC1A, ENC1B,
-    ENC2A, ENC2B,
-    ENC3A, ENC3B,
-    ENC4A, ENC4B,
-    ENC5A, ENC5B,
-    ENC6A, ENC6B,
-    ENC7A, ENC7B,
-    ENC8A, ENC8B,
+const gpio_num_t ENCODER_PINS[ENC_COUNT * 2] = {
+    ENC1A,
+    ENC1B,
+    ENC2A,
+    ENC2B,
+    ENC3A,
+    ENC3B,
+    ENC4A,
+    ENC4B,
+    ENC5A,
+    ENC5B,
+    ENC6A,
+    ENC6B,
+    ENC7A,
+    ENC7B,
+    ENC8A,
+    ENC8B,
 };
 
-PcntInterruptHandler& PcntInterruptHandler::get(Manager *manager) {
+PcntInterruptHandler& PcntInterruptHandler::get(Manager* manager) {
     static PcntInterruptHandler instance(manager);
     return instance;
 }
 
-PcntInterruptHandler::PcntInterruptHandler(Manager *manager) {
+PcntInterruptHandler::PcntInterruptHandler(Manager* manager) {
     pcnt_isr_register(isrHandler, manager, ESP_INTR_FLAG_DEFAULT, NULL);
 }
 
@@ -58,8 +66,8 @@ void PcntInterruptHandler::enable(int index) {
     pcnt_intr_enable((pcnt_unit_t)index);
 }
 
-void IRAM_ATTR PcntInterruptHandler::isrHandler(void *cookie) {
-    auto *man = (Manager*)cookie;
+void IRAM_ATTR PcntInterruptHandler::isrHandler(void* cookie) {
+    auto* man = (Manager*)cookie;
     uint32_t intr_status = PCNT.int_st.val;
     for (int i = 0; i < PCNT_UNIT_MAX; i++) {
         if (intr_status & (BIT(i))) {
@@ -82,8 +90,10 @@ void IRAM_ATTR PcntInterruptHandler::isrHandler(void *cookie) {
     }
 }
 
-Encoder::Encoder(rb::Manager& man, rb::MotorId id) : m_manager(man), m_id(id) {
-    if(m_id >= MotorId::MAX) {
+Encoder::Encoder(rb::Manager& man, rb::MotorId id)
+    : m_manager(man)
+    , m_id(id) {
+    if (m_id >= MotorId::MAX) {
         ESP_LOGE(TAG, "Invalid encoder index %d, using 0 instead.", (int)m_id);
         m_id = MotorId::M1;
     }
@@ -98,16 +108,15 @@ Encoder::Encoder(rb::Manager& man, rb::MotorId id) : m_manager(man), m_id(id) {
 }
 
 Encoder::~Encoder() {
-
 }
 
 void Encoder::install() {
-    const auto encA = ENCODER_PINS[static_cast<int>(m_id)*2];
-    const auto encB = ENCODER_PINS[static_cast<int>(m_id)*2 + 1];
+    const auto encA = ENCODER_PINS[static_cast<int>(m_id) * 2];
+    const auto encB = ENCODER_PINS[static_cast<int>(m_id) * 2 + 1];
 
     {
         gpio_config_t io_conf;
-        io_conf.intr_type = GPIO_INTR_POSEDGE;  //ANYEDGE gives oscillating time differences in engine rotor half turns
+        io_conf.intr_type = GPIO_INTR_POSEDGE; //ANYEDGE gives oscillating time differences in engine rotor half turns
         io_conf.pin_bit_mask = (1ULL << encA);
         io_conf.mode = GPIO_MODE_INPUT;
         io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
@@ -115,7 +124,7 @@ void Encoder::install() {
     }
     {
         gpio_config_t io_conf;
-        io_conf.intr_type = GPIO_INTR_DISABLE;  //ANYEDGE gives oscillating time differences in engine rotor half turns
+        io_conf.intr_type = GPIO_INTR_DISABLE; //ANYEDGE gives oscillating time differences in engine rotor half turns
         io_conf.pin_bit_mask = (1ULL << encB);
         io_conf.mode = GPIO_MODE_INPUT;
         io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
@@ -128,22 +137,21 @@ void Encoder::install() {
     pcnt_init(PCNT_UNITS[static_cast<int>(m_id)], encA, encB);
 }
 
-void Encoder::pcnt_init(pcnt_unit_t pcntUnit, gpio_num_t GPIO_A, gpio_num_t GPIO_B)
-{
+void Encoder::pcnt_init(pcnt_unit_t pcntUnit, gpio_num_t GPIO_A, gpio_num_t GPIO_B) {
     pcnt_config_t pcnt_config = {
         // Set PCNT input signal and control GPIOs
-        GPIO_A,   //pulse_gpio_num
-        GPIO_B,    //ctrl_gpio_num
+        GPIO_A, //pulse_gpio_num
+        GPIO_B, //ctrl_gpio_num
         // What to do when control input is low or high?
-        PCNT_MODE_KEEP,   //lctrl_mode  // Keep the primary counter mode if high
-        PCNT_MODE_REVERSE,  //hctrl_mode   // Reverse counting direction if low
+        PCNT_MODE_KEEP, //lctrl_mode  // Keep the primary counter mode if high
+        PCNT_MODE_REVERSE, //hctrl_mode   // Reverse counting direction if low
         // What to do on the positive / negative edge of pulse input?
         PCNT_COUNT_INC, //pos_mode   // Count up on the positive edge
         PCNT_COUNT_DEC, //neg_mode   // Keep the counter value on the negative edge  --TODO: is this correct? comment says keep, code says decrease
         // Set the maximum and minimum limit values to watch
         PCNT_H_LIM_VAL, //counter_h_lim
         PCNT_L_LIM_VAL, //counter_l_lim
-        pcntUnit,   //unit
+        pcntUnit, //unit
         PCNT_CHANNEL_0, //channel
     };
     pcnt_unit_config(&pcnt_config); //Initialize PCNT units
@@ -173,8 +181,7 @@ void Encoder::pcnt_init(pcnt_unit_t pcntUnit, gpio_num_t GPIO_A, gpio_num_t GPIO
     pcnt_counter_resume(pcntUnit);
 }
 
-void IRAM_ATTR Encoder::isrGpio(void* cookie)
-{
+void IRAM_ATTR Encoder::isrGpio(void* cookie) {
     auto& enc = *((Encoder*)cookie);
     const Manager::Event ev = {
         .type = Manager::EVENT_ENCODER_EDGE,
@@ -182,12 +189,12 @@ void IRAM_ATTR Encoder::isrGpio(void* cookie)
             .encoderEdge = {
                 .timestamp = esp_timer_get_time(),
                 .id = enc.m_id,
-                .pinLevel = (uint8_t)gpio_get_level(ENCODER_PINS[static_cast<int>(enc.m_id)*2 + 1]),
+                .pinLevel = (uint8_t)gpio_get_level(ENCODER_PINS[static_cast<int>(enc.m_id) * 2 + 1]),
             },
         },
     };
 
-    if(enc.m_manager.queueFromIsr(&ev)) {
+    if (enc.m_manager.queueFromIsr(&ev)) {
         portYIELD_FROM_ISR();
     }
 }
@@ -196,19 +203,18 @@ void Encoder::onEdgeIsr(int64_t timestamp, uint8_t pinLevel) {
     std::function<void(Encoder&)> callback;
 
     m_time_mutex.lock();
-    if(timestamp > m_counter_time_us_last + ENC_DEBOUNCE_US) {
+    if (timestamp > m_counter_time_us_last + ENC_DEBOUNCE_US) {
         m_counter_time_us_diff = timestamp - m_counter_time_us_last;
-        if(pinLevel) {
+        if (pinLevel) {
             m_counter_time_us_diff = -m_counter_time_us_diff;
         }
         m_counter_time_us_last = timestamp;
 
         ESP_LOGD(TAG, "Edge %d %d %d", (int)m_id, value(), (int)pinLevel);
 
-        if(m_target_direction != 0) {
+        if (m_target_direction != 0) {
             const auto val = value();
-            if ((m_target_direction > 0 && val >= m_target) ||
-                (m_target_direction < 0 && val <= m_target)) {
+            if ((m_target_direction > 0 && val >= m_target) || (m_target_direction < 0 && val <= m_target)) {
                 m_manager.setMotors().power(m_id, 0).set(true);
                 m_target_direction = 0;
                 callback = m_target_callback;
@@ -217,7 +223,7 @@ void Encoder::onEdgeIsr(int64_t timestamp, uint8_t pinLevel) {
     }
     m_time_mutex.unlock();
 
-    if(callback)
+    if (callback)
         callback(*this);
 }
 
@@ -245,9 +251,9 @@ float Encoder::speed() {
     const auto diff = m_counter_time_us_diff;
     m_time_mutex.unlock();
 
-    if(esp_timer_get_time() > (last + MAX_ENGINE_PERIOD_US)) {
+    if (esp_timer_get_time() > (last + MAX_ENGINE_PERIOD_US)) {
         return 0.f;
-    } else if(llabs(diff) < MIN_ENGINE_PERIOD_US) {
+    } else if (llabs(diff) < MIN_ENGINE_PERIOD_US) {
         return 0.f;
     } else {
         return 1000000.f / diff;
@@ -255,17 +261,17 @@ float Encoder::speed() {
 }
 
 void Encoder::driveToValue(int32_t positionAbsolute, uint8_t power, std::function<void(Encoder&)> callback) {
-    if(power == 0)
+    if (power == 0)
         return;
 
     ESP_LOGD(TAG, "driveToValue %d %d %d %p", positionAbsolute, this->value(), power, callback);
 
     const auto current = this->value();
-    if(current == positionAbsolute)
+    if (current == positionAbsolute)
         return;
 
     m_time_mutex.lock();
-    if(m_target_direction != 0 && m_target_callback) {
+    if (m_target_direction != 0 && m_target_callback) {
         m_target_callback(*this);
     }
     m_target_callback = callback;

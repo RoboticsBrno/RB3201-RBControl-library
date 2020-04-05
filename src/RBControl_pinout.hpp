@@ -18,7 +18,7 @@ enum class MotorId : uint8_t {
     MAX,
 };
 
-inline MotorId operator++( MotorId& x ) { return x = MotorId(static_cast<uint8_t>(x) + 1); }
+inline MotorId operator++(MotorId& x) { return x = MotorId(static_cast<uint8_t>(x) + 1); }
 
 static const gpio_num_t IO0 = GPIO_NUM_0;
 static const gpio_num_t IO2 = GPIO_NUM_2;
@@ -100,7 +100,5 @@ static const int LED_YELLOW = EB4;
 static const int LED_GREEN = EB5;
 static const int LED_BLUE = EB6;
 static const int EXPANDER_BOARD_POWER_ON = EB7; //<! keeps the board powered on
-
-
 
 } // namespace rb

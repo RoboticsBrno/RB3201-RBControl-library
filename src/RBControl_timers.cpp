@@ -5,36 +5,36 @@
 
 namespace rb {
 
-Timers::Timers(Manager& man) : m_id_counter(1) {
+Timers::Timers(Manager& man)
+    : m_id_counter(1) {
     xTaskCreatePinnedToCore(&Timers::taskTrampoline, "rb_timers", 4096, this, 1, &m_task, 1);
     man.monitorTask(m_task);
 }
 
 Timers::~Timers() {
-    
 }
 
-void Timers::taskTrampoline(void *timers) {
+void Timers::taskTrampoline(void* timers) {
     ((Timers*)timers)->timersTask();
 }
 
 void Timers::timersTask() {
-    while(1) {
+    while (1) {
         TickType_t now = xTaskGetTickCount();
         TickType_t next = portMAX_DELAY;
 
         m_mutex.lock();
-        for(size_t i = 0; i < m_timers.size();) {
-            auto &t = m_timers[i];
-            if(now >= t.next) {
-                if(!t.callback()) {
+        for (size_t i = 0; i < m_timers.size();) {
+            auto& t = m_timers[i];
+            if (now >= t.next) {
+                if (!t.callback()) {
                     cancelByIdxLocked(i);
                     continue;
                 }
                 t.next = now + t.period;
             }
 
-            if(t.next < next)
+            if (t.next < next)
                 next = t.next;
             ++i;
         }
@@ -43,7 +43,7 @@ void Timers::timersTask() {
         now = xTaskGetTickCount();
         const auto to_wait = next <= now ? 0 : next - now;
         xTaskNotifyWait(0, 0, NULL, to_wait);
-    } 
+    }
 }
 
 uint16_t Timers::schedule(uint32_t period_ms, std::function<bool()> callback) {
@@ -68,9 +68,9 @@ bool Timers::reset(uint16_t id, uint32_t period_ms) {
     std::lock_guard<std::recursive_mutex> l(m_mutex);
 
     const auto size = m_timers.size();
-    for(size_t i = 0; i < size; ++i) {
+    for (size_t i = 0; i < size; ++i) {
         auto& t = m_timers[i];
-        if(t.id != id)
+        if (t.id != id)
             continue;
 
         t.period = MS_TO_TICKS(period_ms);
@@ -85,8 +85,8 @@ bool Timers::cancel(uint16_t id) {
     std::lock_guard<std::recursive_mutex> l(m_mutex);
 
     const auto size = m_timers.size();
-    for(size_t i = 0; i < size; ++i) {
-        if(m_timers[i].id == id) {
+    for (size_t i = 0; i < size; ++i) {
+        if (m_timers[i].id == id) {
             cancelByIdxLocked(i);
             return true;
         }
@@ -96,35 +96,34 @@ bool Timers::cancel(uint16_t id) {
 
 void Timers::cancelByIdxLocked(size_t idx) {
     const auto size = m_timers.size();
-    if(idx+1 < size) {
-        m_timers[idx] = m_timers[size-1];
+    if (idx + 1 < size) {
+        m_timers[idx] = m_timers[size - 1];
     }
     m_timers.pop_back();
 }
 
 uint16_t Timers::getFreeIdLocked() {
     uint16_t id = m_id_counter;
-    while(1) {
-        if(id == INVALID_ID) {
+    while (1) {
+        if (id == INVALID_ID) {
             ++id;
             continue;
         }
-    
+
         bool found = false;
-        for(const auto& t : m_timers) {
-            if(t.id == id) {
+        for (const auto& t : m_timers) {
+            if (t.id == id) {
                 found = true;
                 ++id;
                 break;
             }
         }
 
-        if(!found) {
+        if (!found) {
             m_id_counter = id + 1;
             return id;
         }
     }
 }
-
 
 };

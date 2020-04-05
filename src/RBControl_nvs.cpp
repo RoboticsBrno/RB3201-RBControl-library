@@ -5,15 +5,14 @@
 
 namespace rb {
 
-Nvs::Nvs(const char *name, const char *partiton)
-    : m_dirty( false )
-{
+Nvs::Nvs(const char* name, const char* partiton)
+    : m_dirty(false) {
     ESP_ERROR_CHECK(initFlash());
     ESP_ERROR_CHECK(nvs_open_from_partition(partiton, name, NVS_READWRITE, &m_handle));
 }
 
 Nvs::~Nvs() {
-    if ( m_dirty )
+    if (m_dirty)
         commit();
 }
 
@@ -28,28 +27,28 @@ esp_err_t Nvs::initFlash() {
     return err;
 }
 
-bool Nvs::existsInt(const char *key) {
+bool Nvs::existsInt(const char* key) {
     int value;
     return nvs_get_i32(m_handle, key, &value) == ESP_OK;
 }
 
-int Nvs::getInt(const char *key) {
+int Nvs::getInt(const char* key) {
     int value;
     ESP_ERROR_CHECK(nvs_get_i32(m_handle, key, &value));
     return value;
 }
 
-void Nvs::writeInt(const char *key, int value) {
+void Nvs::writeInt(const char* key, int value) {
     ESP_ERROR_CHECK(nvs_set_i32(m_handle, key, value));
     m_dirty = true;
 }
 
-bool Nvs::existsString(const char *key) {
+bool Nvs::existsString(const char* key) {
     size_t len;
     return nvs_get_str(m_handle, key, NULL, &len) == ESP_OK;
 }
 
-std::string Nvs::getString(const char *key) {
+std::string Nvs::getString(const char* key) {
     size_t len;
     ESP_ERROR_CHECK(nvs_get_str(m_handle, key, NULL, &len));
 
@@ -58,7 +57,7 @@ std::string Nvs::getString(const char *key) {
     return std::string(res.data());
 }
 
-void Nvs::writeString(const char *key, const std::string& value) {
+void Nvs::writeString(const char* key, const std::string& value) {
     ESP_ERROR_CHECK(nvs_set_str(m_handle, key, value.c_str()));
     m_dirty = true;
 }

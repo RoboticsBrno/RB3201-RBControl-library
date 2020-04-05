@@ -1,5 +1,5 @@
-#include <unity.h>
 #include "RBControl_util.hpp"
+#include <unity.h>
 
 // This test only checks if the project compiles
 

@@ -1,5 +1,5 @@
-#include <iostream>
 #include "RBControl_logger.hpp"
+#include <iostream>
 
 #include <Arduino.h>
 
@@ -12,5 +12,4 @@ void setup() {
 }
 
 void loop() {
-
 }

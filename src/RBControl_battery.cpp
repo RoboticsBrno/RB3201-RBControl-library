@@ -1,5 +1,5 @@
-#include <driver/gpio.h>
 #include <driver/adc.h>
+#include <driver/gpio.h>
 #include <esp_log.h>
 
 #include "RBControl_battery.hpp"
@@ -13,7 +13,10 @@ namespace rb {
 const int DEFAULT_REF_VOLTAGE = 1100;
 const int BATTERY_ADC_SAMPLES = 32;
 
-Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander) : m_piezo(piezo), m_leds(leds), m_expander(expander) {
+Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander)
+    : m_piezo(piezo)
+    , m_leds(leds)
+    , m_expander(expander) {
     m_warningOn = false;
     m_emergencyShutdown = true;
     m_undervoltedCounter = 0;
@@ -21,7 +24,6 @@ Battery::Battery(rb::Piezo& piezo, rb::Leds& leds, Adafruit_MCP23017& expander) 
 }
 
 Battery::~Battery() {
-
 }
 
 void Battery::install(bool disableEmergencyShutdown) {
@@ -30,7 +32,7 @@ void Battery::install(bool disableEmergencyShutdown) {
     bool calibrated = false;
     int vref = DEFAULT_REF_VOLTAGE;
     auto& cfg = Manager::get().config();
-    if ( cfg.existsInt("vref")) {
+    if (cfg.existsInt("vref")) {
         vref = cfg.getInt("vref");
         calibrated = true;
     }
@@ -39,13 +41,13 @@ void Battery::install(bool disableEmergencyShutdown) {
     adc1_config_channel_atten(BATT_ADC_CHANNEL, ADC_ATTEN_DB_0);
     esp_adc_cal_value_t calibType = esp_adc_cal_characterize(BATT_ADC_UNIT,
         ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, vref, &m_adcChars);
-    if ( calibType == ESP_ADC_CAL_VAL_DEFAULT_VREF && !calibrated ) {
+    if (calibType == ESP_ADC_CAL_VAL_DEFAULT_VREF && !calibrated) {
         ESP_LOGE(TAG, "No ADC calibration. Readings might be incorrect.");
     }
 
     updateVoltage();
 
-    Manager::get().schedule(500, [&]()->bool{
+    Manager::get().schedule(500, [&]() -> bool {
         updateVoltage();
         return true;
     });
@@ -85,9 +87,9 @@ uint32_t Battery::voltageMv() const {
 
 uint32_t Battery::pct() const {
     const auto mv = voltageMv();
-    if(mv <= VOLTAGE_MIN) {
+    if (mv <= VOLTAGE_MIN) {
         return 0;
-    } else if(mv >= VOLTAGE_MAX) {
+    } else if (mv >= VOLTAGE_MAX) {
         return 100;
     } else {
         return (float(mv - VOLTAGE_MIN) / (VOLTAGE_MAX - VOLTAGE_MIN)) * 100.f;
@@ -114,23 +116,23 @@ void Battery::updateVoltage() {
     ESP_LOGD(TAG, "Battery is at %u mV (raw %u)", voltage, adc_reading);
 
     // Not connected to the battery
-    if(voltage < 3000) {
+    if (voltage < 3000) {
         return;
     }
 
-    if(voltage <= VOLTAGE_WARNING) {
+    if (voltage <= VOLTAGE_WARNING) {
         setWarning(!m_warningOn);
-    } else if(m_warningOn) {
+    } else if (m_warningOn) {
         setWarning(false);
     }
 
-    if(voltage <= VOLTAGE_MIN) {
+    if (voltage <= VOLTAGE_MIN) {
         ESP_LOGE(TAG, "Battery is at %umV (raw %u)", voltage, adc_reading);
-        if(++m_undervoltedCounter >= 10) {
+        if (++m_undervoltedCounter >= 10) {
             if (m_emergencyShutdown)
                 shutdown();
         }
-    } else if(m_undervoltedCounter != 0) {
+    } else if (m_undervoltedCounter != 0) {
         --m_undervoltedCounter;
     }
 }

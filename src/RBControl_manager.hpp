@@ -2,20 +2,20 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
-#include <vector>
+#include <functional>
+#include <list>
 #include <memory>
 #include <mutex>
-#include <list>
-#include <functional>
+#include <vector>
 
-#include "RBControl_battery.hpp"
-#include "RBControl_piezo.hpp"
 #include "Adafruit_MCP23017.h"
-#include "RBControl_leds.hpp"
+#include "RBControl_battery.hpp"
 #include "RBControl_encoder.hpp"
-#include "RBControl_servo.hpp"
+#include "RBControl_leds.hpp"
 #include "RBControl_motor.hpp"
 #include "RBControl_nvs.hpp"
+#include "RBControl_piezo.hpp"
+#include "RBControl_servo.hpp"
 #include "RBControl_timers.hpp"
 
 namespace rb {
@@ -24,15 +24,15 @@ class MotorChangeBuilder;
 
 //! This enum contains flags for the Manager's install() method.
 enum ManagerInstallFlags {
-    MAN_NONE                                = 0,
-    MAN_DISABLE_MOTOR_FAILSAFE              = (1 << 0), //!< Disables automatic motor failsafe, which stops the motors
-                                                        //!< after 300ms of no set motor power calls.
-    MAN_DISABLE_BATTERY_MANAGEMENT          = (1 << 1), //!< Disables the battery voltage
-                                                        //!< auto-shutdown on low battery voltage.
-    MAN_DISABLE_PIEZO                       = (1 << 2), //!< Do not initialize piezo on pins IO25/IO33, keeps
-                                                        //!< the pins free for other functions.
-                                                        //!< Warning: disabling the piezo is not recommanded because
-                                                        //!< it is used to signalize low battery voltage.
+    MAN_NONE = 0,
+    MAN_DISABLE_MOTOR_FAILSAFE = (1 << 0), //!< Disables automatic motor failsafe, which stops the motors
+    //!< after 300ms of no set motor power calls.
+    MAN_DISABLE_BATTERY_MANAGEMENT = (1 << 1), //!< Disables the battery voltage
+    //!< auto-shutdown on low battery voltage.
+    MAN_DISABLE_PIEZO = (1 << 2), //!< Do not initialize piezo on pins IO25/IO33, keeps
+    //!< the pins free for other functions.
+    //!< Warning: disabling the piezo is not recommanded because
+    //!< it is used to signalize low battery voltage.
 };
 
 inline ManagerInstallFlags operator|(ManagerInstallFlags a, ManagerInstallFlags b) {
@@ -50,6 +50,7 @@ class Manager {
     friend class MotorChangeBuilder;
     friend class Encoder;
     friend class PcntInterruptHandler;
+
 public:
     Manager(Manager const&) = delete;
     void operator=(Manager const&) = delete;
@@ -130,7 +131,7 @@ private:
     struct Event {
         EventType type;
         union {
-            std::vector<EventMotorsData> *motors;
+            std::vector<EventMotorsData>* motors;
 
             struct {
                 int64_t timestamp;
@@ -145,11 +146,11 @@ private:
         } data;
     };
 
-    void queue(const Event *event, bool toFront = false);
-    bool queueFromIsr(const Event *event, bool toFront = false);
-    static void consumerRoutineTrampoline(void *cookie);
+    void queue(const Event* event, bool toFront = false);
+    bool queueFromIsr(const Event* event, bool toFront = false);
+    static void consumerRoutineTrampoline(void* cookie);
     void consumerRoutine();
-    void processEvent(struct Event *ev);
+    void processEvent(struct Event* ev);
 
     bool motorsFailSafe();
 

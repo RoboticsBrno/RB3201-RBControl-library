@@ -1,15 +1,16 @@
 #pragma once
 
-#include <vector>
-#include <mutex>
 #include <FreeRTOS.h>
+#include <mutex>
+#include <vector>
 
 namespace rb {
 
 class Manager;
 
 class Timers {
-friend class Manager;
+    friend class Manager;
+
 public:
     static constexpr uint16_t INVALID_ID = 0;
 
@@ -37,7 +38,7 @@ private:
         uint16_t id;
     };
 
-    static void taskTrampoline(void *timers);
+    static void taskTrampoline(void* timers);
 
     Timers(Manager& man);
 

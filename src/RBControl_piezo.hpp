@@ -9,8 +9,8 @@ namespace rb {
  */
 class Piezo {
     friend class Manager;
-public:
 
+public:
     void setTone(uint32_t freq); //!< Set piezo to freq. Use 0 to turn off.
 
 private:

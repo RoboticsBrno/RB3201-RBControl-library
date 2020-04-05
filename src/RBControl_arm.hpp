@@ -1,10 +1,10 @@
 #pragma once
 
-#include <vector>
-#include <stdint.h>
 #include <functional>
-#include <memory>
 #include <math.h>
+#include <memory>
+#include <stdint.h>
+#include <vector>
 
 #include "RBControl_angle.hpp"
 
@@ -13,10 +13,10 @@ namespace rb {
 class ArmBuilder;
 class Bone;
 
-class Arm
-{
+class Arm {
     friend class ArmBuilder;
     friend class Bone;
+
 public:
     typedef int32_t CoordType;
 
@@ -75,10 +75,11 @@ private:
 
     static AngleType clamp(AngleType ang);
 
-    Arm(const Definition &def);
+    Arm(const Definition& def);
     Arm(const Arm&) = delete;
 
-    template<typename T = CoordType> static T roundCoord(AngleType val);
+    template <typename T = CoordType>
+    static T roundCoord(AngleType val);
 
     bool solveIteration(CoordType target_x, CoordType target_y, bool& modified);
     AngleType rotateArm(size_t idx, AngleType rot_ang);
@@ -92,6 +93,7 @@ private:
 
 class Bone {
     friend class Arm;
+
 public:
     const Arm::BoneDefinition& def;
 
@@ -103,13 +105,14 @@ public:
 private:
     Bone(const Arm::BoneDefinition& def);
 
-    void updatePos(Bone *prev);
+    void updatePos(Bone* prev);
 };
 
 class ArmBuilder;
 
 class BoneBuilder {
     friend class ArmBuilder;
+
 public:
     BoneBuilder(BoneBuilder&& other);
     ~BoneBuilder();

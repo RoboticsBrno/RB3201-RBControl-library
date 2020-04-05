@@ -3,7 +3,8 @@
 
 namespace rb {
 
-Leds::Leds(Adafruit_MCP23017& expander) : m_expander(expander) {
+Leds::Leds(Adafruit_MCP23017& expander)
+    : m_expander(expander) {
     m_expander.pinMode(LED_RED, GPIO_MODE_OUTPUT);
     m_expander.pinMode(LED_YELLOW, GPIO_MODE_OUTPUT);
     m_expander.pinMode(LED_GREEN, GPIO_MODE_OUTPUT);
@@ -11,7 +12,6 @@ Leds::Leds(Adafruit_MCP23017& expander) : m_expander(expander) {
 }
 
 Leds::~Leds() {
-
 }
 
 void Leds::red(bool on) {
@@ -29,6 +29,5 @@ void Leds::green(bool on) {
 void Leds::blue(bool on) {
     m_expander.digitalWrite(LED_BLUE, on ? 1 : 0);
 }
-
 
 };

@@ -1,13 +1,13 @@
 #pragma once
 
 #include <atomic>
-#include <memory>
 #include <functional>
+#include <memory>
 
+#include "RBControl_encoder.hpp"
+#include "RBControl_pinout.hpp"
 #include "RBControl_serialPWM.hpp"
 #include "RBControl_util.hpp"
-#include "RBControl_pinout.hpp"
-#include "RBControl_encoder.hpp"
 
 namespace rb {
 
@@ -17,6 +17,7 @@ class MotorChangeBuilder;
 class Motor {
     friend class Manager;
     friend class MotorChangeBuilder;
+
 public:
     /**
      * \brief Set motor power.
@@ -53,15 +54,15 @@ public:
     /**
      * \brief Get the Encoder instance for this motor. See {@link Encoder}.
      */
-    Encoder *encoder();
+    Encoder* encoder();
 
     /**
      * \brief Get the Encoder instance for this motor. Same as {@link encoder}.
      */
-    Encoder *enc() { return encoder(); }
+    Encoder* enc() { return encoder(); }
 
 private:
-    Motor(Manager& man, MotorId id, SerialPWM::value_type & pwm0, SerialPWM::value_type & pwm1);
+    Motor(Manager& man, MotorId id, SerialPWM::value_type& pwm0, SerialPWM::value_type& pwm1);
     Motor(const Motor&) = delete;
 
     bool direct_power(int8_t power);
@@ -70,8 +71,8 @@ private:
 
     Manager& m_man;
 
-    SerialPWM::value_type & m_pwm0;
-    SerialPWM::value_type & m_pwm1;
+    SerialPWM::value_type& m_pwm0;
+    SerialPWM::value_type& m_pwm1;
     MotorId m_id;
 
     std::mutex m_mutex;

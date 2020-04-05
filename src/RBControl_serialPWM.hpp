@@ -2,8 +2,8 @@
 
 #include <freertos/FreeRTOS.h>
 
-#include <i2s_parallel.h>
 #include <driver/i2s.h>
+#include <i2s_parallel.h>
 
 #include <initializer_list>
 #include <vector>
@@ -15,16 +15,16 @@ public:
     typedef int value_type;
 
     SerialPWM(const int channels,
-              const std::initializer_list<int> data_pins,
-              const int latch_pin,
-              const int clock_pin,
-              const int test_pin = -1,
-              const int frequency = 20000,
-              const int i2s = 1);
+        const std::initializer_list<int> data_pins,
+        const int latch_pin,
+        const int clock_pin,
+        const int test_pin = -1,
+        const int frequency = 20000,
+        const int i2s = 1);
 
     ~SerialPWM();
 
-    value_type& operator [] (size_t index);
+    value_type& operator[](size_t index);
 
     void update();
 
