@@ -1,35 +1,35 @@
 {
-    "name": "RB3201-RBControl",
-    "keywords": "ESP32, RBControl, RB3201, Robotarna, RobotikaBrno, RoboticsBrno",
-    "description": "Library for the RB3201-RBControl board with the ESP32 by RoboticsBrno.",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/RoboticsBrno/RB3201-RBControl-library.git"
+  "name": "RB3201-RBControl",
+  "keywords": "ESP32, RBControl, RB3201, Robotarna, RobotikaBrno, RoboticsBrno",
+  "description": "Library for the RB3201-RBControl board with the ESP32 by RoboticsBrno.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RoboticsBrno/RB3201-RBControl-library.git"
+  },
+  "authors": [
+    {
+      "name": "Jan Mrázek",
+      "email": "email@honzamrazek.cz",
+      "url": "http://www.robotikabrno.cz"
     },
-    "authors": [
-        {
-            "name": "Jan Mrázek",
-            "email": "email@honzamrazek.cz",
-            "url": "http://www.robotikabrno.cz"
-        },
-        {
-            "name": "Jaroslav Paral",
-            "email": "paral@robotikabrno.cz",
-            "url": "http://www.robotikabrno.cz"
-        },
-        {
-            "name": "Vojtěch Boček",
-            "email": "vbocek@gmail.com",
-            "url": "http://www.robotikabrno.cz",
-		    "maintainer": true
-        }
-    ],
-    "version": "6.3.0",
-    "frameworks": [ "espidf", "arduino" ],
-    "platforms": "espressif32",
-    "build": {
-        "flags": "-std=c++14",
-        "unflags": "-std=gnu++11"
+    {
+      "name": "Jaroslav Paral",
+      "email": "paral@robotikabrno.cz",
+      "url": "http://www.robotikabrno.cz"
+    },
+    {
+      "name": "Vojtěch Boček",
+      "email": "vbocek@gmail.com",
+      "url": "http://www.robotikabrno.cz",
+      "maintainer": true
     }
+  ],
+  "version": "7.0.0",
+  "frameworks": ["espidf", "arduino"],
+  "platforms": "espressif32",
+  "build": {
+    "flags": "-std=c++14",
+    "unflags": "-std=gnu++11"
+  }
 }
