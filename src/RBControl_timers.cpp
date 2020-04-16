@@ -7,75 +7,54 @@ namespace rb {
 
 Timers::Timers(Manager& man)
     : m_id_counter(1) {
-    xTaskCreatePinnedToCore(&Timers::taskTrampoline, "rb_timers", 4096, this, 1, &m_task, 1);
-    man.monitorTask(m_task);
 }
 
 Timers::~Timers() {
 }
 
-void Timers::taskTrampoline(void* timers) {
-    ((Timers*)timers)->timersTask();
-}
+void Timers::timerCallback(TimerHandle_t timer) {
+    auto* self = (Timers*)pvTimerGetTimerID(timer);
 
-void Timers::timersTask() {
-    while (1) {
-        TickType_t now = xTaskGetTickCount();
-        TickType_t next = portMAX_DELAY;
+    std::lock_guard<std::recursive_mutex> l(self->m_mutex);
+    for (auto& t : self->m_timers) {
+        if (t.handle != timer)
+            continue;
 
-        m_mutex.lock();
-        for (size_t i = 0; i < m_timers.size();) {
-            auto& t = m_timers[i];
-            if (now >= t.next) {
-                if (!t.callback()) {
-                    cancelByIdxLocked(i);
-                    continue;
-                }
-                t.next = now + t.period;
-            }
-
-            if (t.next < next)
-                next = t.next;
-            ++i;
+        if (t.callback()) {
+            xTimerReset(t.handle, portMAX_DELAY);
+        } else {
+            self->cancel(t.id);
         }
-        m_mutex.unlock();
-
-        now = xTaskGetTickCount();
-        const auto to_wait = next <= now ? 0 : next - now;
-        xTaskNotifyWait(0, 0, NULL, to_wait);
+        break;
     }
 }
 
 uint16_t Timers::schedule(uint32_t period_ms, std::function<bool()> callback) {
     const TickType_t period = MS_TO_TICKS(period_ms);
+    auto handle = xTimerCreate("rbtimer", period, pdFALSE, this, timerCallback);
 
     m_mutex.lock();
     const auto id = getFreeIdLocked();
-    const TickType_t next = xTaskGetTickCount() + period;
     m_timers.emplace_back(timer_t {
         .callback = callback,
-        .next = next,
-        .period = period,
+        .handle = handle,
         .id = id,
     });
+    xTimerStart(handle, portMAX_DELAY);
     m_mutex.unlock();
 
-    xTaskNotify(m_task, 0, eNoAction);
     return id;
 }
 
 bool Timers::reset(uint16_t id, uint32_t period_ms) {
     std::lock_guard<std::recursive_mutex> l(m_mutex);
 
-    const auto size = m_timers.size();
-    for (size_t i = 0; i < size; ++i) {
-        auto& t = m_timers[i];
+    for (auto& t : m_timers) {
         if (t.id != id)
             continue;
 
-        t.period = MS_TO_TICKS(period_ms);
-        t.next = xTaskGetTickCount() + t.period;
-        xTaskNotify(m_task, 0, eNoAction);
+        xTimerChangePeriod(t.handle, MS_TO_TICKS(period_ms), portMAX_DELAY);
+        xTimerReset(t.handle, portMAX_DELAY);
         return true;
     }
     return false;
@@ -96,6 +75,7 @@ bool Timers::cancel(uint16_t id) {
 
 void Timers::cancelByIdxLocked(size_t idx) {
     const auto size = m_timers.size();
+    xTimerDelete(m_timers[idx].handle, portMAX_DELAY);
     if (idx + 1 < size) {
         m_timers[idx] = m_timers[size - 1];
     }

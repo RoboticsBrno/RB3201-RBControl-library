@@ -1,6 +1,9 @@
 #pragma once
 
 #include <FreeRTOS.h>
+#include <freertos/timers.h>
+
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -33,24 +36,20 @@ public:
 private:
     struct timer_t {
         std::function<bool()> callback;
-        TickType_t next;
-        TickType_t period;
+        TimerHandle_t handle;
         uint16_t id;
     };
 
-    static void taskTrampoline(void* timers);
+    static void timerCallback(TimerHandle_t timer);
 
     Timers(Manager& man);
 
-    void timersTask();
-
-    uint16_t getFreeIdLocked();
     void cancelByIdxLocked(size_t idx);
+    uint16_t getFreeIdLocked();
 
-    TaskHandle_t m_task;
-    uint16_t m_id_counter;
     std::vector<timer_t> m_timers;
     std::recursive_mutex m_mutex;
+    uint16_t m_id_counter;
 };
 
 };
