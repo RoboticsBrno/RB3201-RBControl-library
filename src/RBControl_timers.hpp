@@ -17,6 +17,11 @@ class Timers {
 public:
     static constexpr uint16_t INVALID_ID = 0;
 
+    /**
+     * \brief  If you don't plan to use FreeRTOS SW timers, call this to free up 2KB of heap
+     */
+    static void deleteFreeRtOsTimerTask();
+
     ~Timers();
 
     /**

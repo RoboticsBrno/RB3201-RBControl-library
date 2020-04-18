@@ -1,7 +1,19 @@
-#include "RBControl_timers.hpp"
+#include <freertos/FreeRTOS.h>
+#include <freertos/timers.h>
+
 #include "RBControl_manager.hpp"
+#include "RBControl_timers.hpp"
 
 namespace rb {
+
+static void dieTimers(TimerHandle_t timer) {
+    vPortFree(timer);
+    vTaskDelete(NULL); // lol
+}
+
+void Timers::deleteFreeRtOsTimerTask() {
+    xTimerStart(xTimerCreate("sike!", 1, pdFALSE, NULL, dieTimers), portMAX_DELAY);
+}
 
 Timers::Timers(Manager& man)
     : m_id_counter(1) {
@@ -116,5 +128,4 @@ uint16_t Timers::getFreeIdLocked() {
         }
     }
 }
-
 };
