@@ -1,7 +1,6 @@
 #pragma once
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/timers.h>
+#include <esp_timer.h>
 
 #include <memory>
 #include <mutex>
@@ -10,6 +9,7 @@
 namespace rb {
 
 class Manager;
+class Timers;
 
 class Timers {
     friend class Manager;
@@ -34,13 +34,18 @@ public:
     bool cancel(uint16_t id);
 
 private:
-    struct timer_t {
-        std::function<bool()> callback;
-        TimerHandle_t handle;
+    struct callback_arg_t {
+        Timers* self;
         uint16_t id;
     };
 
-    static void timerCallback(TimerHandle_t timer);
+    struct timer_t {
+        std::function<bool()> callback;
+        esp_timer_handle_t handle;
+        std::unique_ptr<callback_arg_t> args;
+    };
+
+    static void timerCallback(void* handleVoid);
 
     Timers(Manager& man);
 
