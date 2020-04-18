@@ -9,17 +9,12 @@
 
 #define TAG "RBControlManager"
 
-#define EVENT_LOOP_PERIOD (10 / portTICK_PERIOD_MS)
-#define MOTORS_FAILSAFE_PERIOD 300
+#define MOTORS_FAILSAFE_PERIOD_MS 300
 #define MOTORS_CHANNELS 16
 
 #ifndef MOTORS_PWM_FREQUENCY
 #define MOTORS_PWM_FREQUENCY 10000
 #endif
-
-static int diff_ms(timeval& t1, timeval& t2) {
-    return (((t1.tv_sec - t2.tv_sec) * 1000000) + (t1.tv_usec - t2.tv_usec)) / 1000;
-}
 
 namespace rb {
 
@@ -56,9 +51,9 @@ void Manager::install(ManagerInstallFlags flags) {
         m_motors.emplace_back(new Motor(*this, MotorId(index / 2), m_motors_pwm[pwm_index[index]], m_motors_pwm[pwm_index[index + 1]]));
     }
 
-    m_motors_last_set.tv_sec = 0;
+    m_motors_last_set = 0;
     if (!(flags & MAN_DISABLE_MOTOR_FAILSAFE)) {
-        schedule(MOTORS_FAILSAFE_PERIOD, std::bind(&Manager::motorsFailSafe, this));
+        schedule(MOTORS_FAILSAFE_PERIOD_MS, std::bind(&Manager::motorsFailSafe, this));
     }
 
     setupExpander();
@@ -147,7 +142,7 @@ void Manager::processEvent(struct Manager::Event* ev) {
         }
         delete data;
 
-        gettimeofday(&m_motors_last_set, NULL);
+        m_motors_last_set = xTaskGetTickCount();
         break;
     }
     case EVENT_MOTORS_STOP_ALL: {
@@ -174,14 +169,13 @@ void Manager::processEvent(struct Manager::Event* ev) {
 }
 
 bool Manager::motorsFailSafe() {
-    if (m_motors_last_set.tv_sec != 0) {
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        if (diff_ms(now, m_motors_last_set) >= MOTORS_FAILSAFE_PERIOD) {
+    if (m_motors_last_set != 0) {
+        const auto now = xTaskGetTickCount();
+        if (now - m_motors_last_set > pdMS_TO_TICKS(MOTORS_FAILSAFE_PERIOD_MS)) {
             ESP_LOGE(TAG, "Motor failsafe triggered, stopping all motors!");
             const Event ev = { .type = EVENT_MOTORS_STOP_ALL, .data = {} };
             queue(&ev);
-            m_motors_last_set.tv_sec = 0;
+            m_motors_last_set = 0;
         }
     }
     return true;

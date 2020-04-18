@@ -165,7 +165,7 @@ private:
 
     QueueHandle_t m_queue;
 
-    struct timeval m_motors_last_set;
+    TickType_t m_motors_last_set;
     std::vector<std::unique_ptr<Motor>> m_motors;
     SerialPWM m_motors_pwm;
 
