@@ -12,8 +12,6 @@ class Manager;
 class Timers;
 
 class Timers {
-    friend class Manager;
-
 public:
     static constexpr uint16_t INVALID_ID = 0;
 
@@ -22,7 +20,7 @@ public:
      */
     static void deleteFreeRtOsTimerTask();
 
-    ~Timers();
+    static Timers& get();
 
     /**
      * \brief Schedule callback to fire after period (in millisecond).
@@ -39,20 +37,16 @@ public:
     bool cancel(uint16_t id);
 
 private:
-    struct callback_arg_t {
-        Timers* self;
-        uint16_t id;
-    };
-
     struct timer_t {
         std::function<bool()> callback;
         esp_timer_handle_t handle;
-        std::unique_ptr<callback_arg_t> args;
+        uint16_t id;
     };
 
     static void timerCallback(void* handleVoid);
 
-    Timers(Manager& man);
+    Timers();
+    ~Timers();
 
     void cancelByIdxLocked(size_t idx);
     uint16_t getFreeIdLocked();

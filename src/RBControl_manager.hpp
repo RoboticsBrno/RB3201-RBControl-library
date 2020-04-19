@@ -103,10 +103,10 @@ public:
      * \param callback is a function which will be schedule with the set period.
      */
     void schedule(uint32_t period_ms, std::function<bool()> callback) {
-        m_timers.schedule(period_ms, callback);
+        timers().schedule(period_ms, callback);
     }
 
-    Timers& timers() { return m_timers; }
+    inline Timers& timers() { return rb::Timers::get(); }
 
     // internal api to monitor RBControl tasks
     void monitorTask(TaskHandle_t task);
@@ -175,7 +175,6 @@ private:
     rb::Battery m_battery;
     rb::SmartServoBus m_servos;
     rb::Nvs m_config;
-    rb::Timers m_timers;
 };
 
 /**

@@ -15,53 +15,55 @@ void Timers::deleteFreeRtOsTimerTask() {
     xTimerStart(xTimerCreate("sike!", 1, pdFALSE, NULL, dieTimers), portMAX_DELAY);
 }
 
-Timers::Timers(Manager& man)
+Timers& Timers::get() {
+    static Timers instance;
+    return instance;
+}
+
+Timers::Timers()
     : m_id_counter(1) {
 }
 
 Timers::~Timers() {
 }
 
-void Timers::timerCallback(void* argsVoid) {
-    callback_arg_t* args = (callback_arg_t*)argsVoid;
-    auto* self = args->self;
-    const auto id = args->id;
+void Timers::timerCallback(void* idVoid) {
+    auto& self = Timers::get();
+    const auto id = (uint16_t)(uintptr_t)idVoid;
 
-    std::lock_guard<std::recursive_mutex> l(self->m_mutex);
-    for (auto& t : self->m_timers) {
-        if (t.args.get() != args)
+    std::lock_guard<std::recursive_mutex> l(self.m_mutex);
+    for (const auto& tm : self.m_timers) {
+        if (tm.id != id)
             continue;
-
-        if (!t.callback()) {
-            self->cancel(id);
+        if (!tm.callback()) {
+            self.cancel(id);
         }
         break;
     }
 }
 
 uint16_t Timers::schedule(uint32_t period_ms, std::function<bool()> callback) {
-    auto args = std::unique_ptr<callback_arg_t>(new callback_arg_t);
-    args->self = this;
+    std::lock_guard<std::recursive_mutex> l(m_mutex);
+
+    const auto id = getFreeIdLocked();
 
     const esp_timer_create_args_t timer_args = {
         .callback = timerCallback,
-        .arg = args.get(),
+        .arg = (void*)(uintptr_t)id,
         .dispatch_method = ESP_TIMER_TASK,
         .name = "rb_timer",
     };
+
     esp_timer_handle_t timer = nullptr;
     esp_timer_create(&timer_args, &timer);
 
-    m_mutex.lock();
-    const auto id = getFreeIdLocked();
-    args->id = id;
     m_timers.emplace_back(timer_t {
         .callback = callback,
         .handle = timer,
-        .args = std::move(args),
+        .id = id,
     });
+
     esp_timer_start_periodic(timer, uint64_t(period_ms) * 1000);
-    m_mutex.unlock();
 
     return id;
 }
@@ -70,7 +72,7 @@ bool Timers::reset(uint16_t id, uint32_t period_ms) {
     std::lock_guard<std::recursive_mutex> l(m_mutex);
 
     for (auto& t : m_timers) {
-        if (t.args->id != id)
+        if (t.id != id)
             continue;
 
         esp_timer_stop(t.handle);
@@ -85,7 +87,7 @@ bool Timers::cancel(uint16_t id) {
 
     const auto size = m_timers.size();
     for (size_t i = 0; i < size; ++i) {
-        if (m_timers[i].args->id == id) {
+        if (m_timers[i].id == id) {
             cancelByIdxLocked(i);
             return true;
         }
@@ -115,7 +117,7 @@ uint16_t Timers::getFreeIdLocked() {
 
         bool found = false;
         for (const auto& t : m_timers) {
-            if (t.args->id == id) {
+            if (t.id == id) {
                 found = true;
                 ++id;
                 break;

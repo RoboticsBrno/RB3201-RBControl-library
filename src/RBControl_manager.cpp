@@ -26,8 +26,7 @@ Manager::Manager()
     , m_leds(m_expander)
     , m_battery(m_piezo, m_leds, m_expander)
     , m_servos()
-    , m_config("rb")
-    , m_timers(*this) {
+    , m_config("rb") {
 }
 
 Manager::~Manager() {
