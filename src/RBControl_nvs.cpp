@@ -14,6 +14,7 @@ Nvs::Nvs(const char* name, const char* partiton)
 Nvs::~Nvs() {
     if (m_dirty)
         commit();
+    nvs_close(m_handle);
 }
 
 esp_err_t Nvs::initFlash() {
