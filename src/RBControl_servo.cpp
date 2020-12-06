@@ -112,10 +112,17 @@ Angle SmartServoBus::pos(uint8_t id) {
         return Angle::nan();
     }
 
-    float val = (float)((resp.data[6] << 8) | resp.data[5]);
-    val = (val / 1000.f) * 240.f;
+    uint16_t val = ((resp.data[6] << 8) | resp.data[5]);
 
-    return Angle::deg(val);
+    // The servo's angle counter can underflow when it moves
+    // to the 0 position. Handle this case by reseting it to 0.
+    if (val > 32767) {
+        val = 0;
+    } else if (val > 1000) {
+        val = 1000;
+    }
+
+    return Angle::deg((float(val) / 1000.f) * 240.f);
 }
 
 Angle SmartServoBus::posOffline(uint8_t id) {
