@@ -32,7 +32,7 @@ void SmartServoBus::install(uint8_t servo_count, uart_port_t uart, gpio_num_t pi
     xTaskCreatePinnedToCore(&SmartServoBus::uartRoutineTrampoline, "rbservo_uart", 2048, this, 1, &task, 1);
     Manager::get().monitorTask(task);
 
-    xTaskCreate(&SmartServoBus::regulatorRoutineTrampoline, "rbservo_reg", 1536, this, 2, &task);
+    xTaskCreate(&SmartServoBus::regulatorRoutineTrampoline, "rbservo_reg", 2048, this, 2, &task);
     Manager::get().monitorTask(task);
 
     Angle val;
