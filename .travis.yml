@@ -19,7 +19,6 @@
 # Travis CI documentation (see above).
 #
 
-
 #
 # Template #1: General project. Test it using existing `platformio.ini`.
 #
@@ -40,14 +39,13 @@
 # script:
 #     - platformio run
 
-
 #
 # Template #2: The project is intended to by used as a library with examples
 #
 
 language: python
 python:
-    - "2.7"
+  - "3.8"
 
 sudo: false
 dist: bionic
@@ -58,20 +56,20 @@ addons:
       - doxygen
 
 cache:
-    directories:
-        - "~/.platformio"
+  directories:
+    - "~/.platformio"
 
 env:
-    - PLATFORMIO_CI_SRC=examples/logger
-    - PLATFORMIO_CI_SRC=examples/motors
+  - PLATFORMIO_CI_SRC=examples/logger
+  - PLATFORMIO_CI_SRC=examples/motors
 
 install:
-    - pip install -U platformio
-    - platformio update
+  - pip3 install -U platformio
+  - platformio update
 
 script:
-    - platformio ci --lib="." --project-conf="./platformio.ini"
-    - doxygen Doxyfile
+  - platformio ci --lib="." --project-conf="./platformio.ini"
+  - doxygen Doxyfile
 
 deploy:
   provider: pages
